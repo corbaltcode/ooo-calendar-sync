@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.23.11
 
 require (
+	github.com/joho/godotenv v1.5.1
 	golang.org/x/oauth2 v0.30.0
 	google.golang.org/api v0.242.0
 )
@@ -20,7 +21,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
 	go.opentelemetry.io/otel v1.36.0 // indirect
