@@ -30,7 +30,6 @@ func main() {
 	config.Subject = "tamara@corbalt.com"
 
 	// Create an HTTP client authorized as the impersonated user
-	// (We don't need the OAuth web flow or token.json — this is a pre-approved JWT request)
 	client := config.Client(ctx)
 
 	// Using our client, create a calendar service.
