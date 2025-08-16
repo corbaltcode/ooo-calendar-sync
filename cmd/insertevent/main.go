@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// Our impersonated user
-	config.Subject = "tamara@corbalt.com"
+	config.Subject = "x-clockify-test@corbalt.com"
 
 	// Create an HTTP client authorized as the impersonated user
 	client := config.Client(ctx)
@@ -55,7 +55,7 @@ func main() {
 
 	calendarIDs := []string{
 		"primary",
-		// Add whatever other calendars the user needs, i.e. corbalt & spoc
+		// Add other calendars
 	}
 
 	for _, calID := range calendarIDs {
