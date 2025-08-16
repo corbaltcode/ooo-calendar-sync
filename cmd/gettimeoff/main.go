@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"ooo-calendar-sync/utils"
+
 	"github.com/joho/godotenv"
 )
 
@@ -203,27 +205,8 @@ func die(format string, args ...any) {
 	os.Exit(1)
 }
 
-var acceptedLayouts = []string{
-	time.RFC3339Nano,
-	time.RFC3339,
-	"2006-01-02",
-}
-
-// Tries to parse multiple date/time layouts and returns a UTC time.
-func parseTimeAny(s string) (time.Time, error) {
-	var lastErr error
-	for _, layout := range acceptedLayouts {
-		if t, err := time.Parse(layout, s); err == nil {
-			return t.UTC(), nil
-		} else {
-			lastErr = err
-		}
-	}
-	return time.Time{}, lastErr
-}
-
 func parseFlexibleRFC3339(s string) (time.Time, error) {
-	return parseTimeAny(s)
+	return utils.ParseTimeAny(s)
 }
 
 // Clockify expects YYYY-MM-DDTHH:MM:SS.ssssssZ (microseconds).
@@ -233,7 +216,7 @@ func formatClockify(t time.Time) string {
 }
 
 func parseAndFormatClockifyTime(s string) (string, error) {
-	t, err := parseTimeAny(s)
+	t, err := utils.ParseTimeAny(s)
 	if err != nil {
 		return "", fmt.Errorf("cannot parse time %q: %w", s, err)
 	}
