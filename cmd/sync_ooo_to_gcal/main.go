@@ -1,14 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"ooo-calendar-sync/core"
 	"os"
 	"strings"
@@ -117,7 +114,7 @@ func main() {
 		}
 	}
 
-	payload := requestPayload{
+	payload := core.RequestPayload{
 		Start:    startPtr,
 		End:      endPtr,
 		Page:     *page,
@@ -129,32 +126,9 @@ func main() {
 		core.Die("when -by=created is used, both -start and -end must be provided")
 	}
 
-	url := fmt.Sprintf("https://api.clockify.me/api/v1/workspaces/%s/time-off/requests", workspaceID)
-	body, err := json.Marshal(payload)
+	respBytes, err := core.FetchClockifyRequests(apiKey, workspaceID, payload)
 	if err != nil {
-		core.Die("marshal request: %v", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		core.Die("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Api-Key", apiKey)
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		core.Die("http request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		core.Die("read body: %v", err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		core.Die("non-2xx status: %s\n%s", resp.Status, string(respBytes))
+		core.Die("fetch clockify: %v", err)
 	}
 
 	// Print results and early return if not filtering by `createdAt`.
