@@ -9,7 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"ooo-calendar-sync/utils"
+	"ooo-calendar-sync/core"
 	"os"
 	"strings"
 	"time"
@@ -65,26 +65,27 @@ func main() {
 
 	apiKey := os.Getenv("CLOCKIFY_API_KEY")
 	if apiKey == "" {
-		die("missing env CLOCKIFY_API_KEY")
+		core.Die("missing env CLOCKIFY_API_KEY")
 	}
 
 	workspaceID := os.Getenv("WORKSPACE_ID")
 	if workspaceID == "" {
-		die("missing env WORKSPACE_ID")
+		core.Die("missing env WORKSPACE_ID")
 	}
 
 	// Parsing the createdAt filters.
 	var createdStart, createdEnd time.Time
+
 	var createdStartOK, createdEndOK bool
 	if *createdStartStr != "" {
-		t, err := parseFlexibleRFC3339(*createdStartStr)
+		t, err := core.ParseFlexibleRFC3339(*createdStartStr)
 		if err != nil {
 			log.Fatalf("invalid -createdStart: %v", err)
 		}
 		createdStart, createdStartOK = t.UTC(), true
 	}
 	if *createdEndStr != "" {
-		t, err := parseFlexibleRFC3339(*createdEndStr)
+		t, err := core.ParseFlexibleRFC3339(*createdEndStr)
 		if err != nil {
 			log.Fatalf("invalid -createdEnd: %v", err)
 		}
@@ -94,16 +95,16 @@ func main() {
 	// Build request payload.
 	var startPtr, endPtr *string
 	if *startStr != "" {
-		ts, err := parseAndFormatClockifyTime(*startStr)
+		ts, err := core.ParseAndFormatClockifyTime(*startStr)
 		if err != nil {
-			die("invalid -start time: %v", err)
+			core.Die("invalid -start time: %v", err)
 		}
 		startPtr = &ts
 	}
 	if *endStr != "" {
-		ts, err := parseAndFormatClockifyTime(*endStr)
+		ts, err := core.ParseAndFormatClockifyTime(*endStr)
 		if err != nil {
-			die("invalid -end time: %v", err)
+			core.Die("invalid -end time: %v", err)
 		}
 		endPtr = &ts
 	}
@@ -125,18 +126,18 @@ func main() {
 	}
 
 	if *by == "created" && (payload.Start == nil || payload.End == nil) {
-		die("when -by=created is used, both -start and -end must be provided")
+		core.Die("when -by=created is used, both -start and -end must be provided")
 	}
 
 	url := fmt.Sprintf("https://api.clockify.me/api/v1/workspaces/%s/time-off/requests", workspaceID)
 	body, err := json.Marshal(payload)
 	if err != nil {
-		die("marshal request: %v", err)
+		core.Die("marshal request: %v", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		die("new request: %v", err)
+		core.Die("new request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Api-Key", apiKey)
@@ -144,21 +145,21 @@ func main() {
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		die("http request: %v", err)
+		core.Die("http request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		die("read body: %v", err)
+		core.Die("read body: %v", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		die("non-2xx status: %s\n%s", resp.Status, string(respBytes))
+		core.Die("non-2xx status: %s\n%s", resp.Status, string(respBytes))
 	}
 
 	// Print results and early return if not filtering by `createdAt`.
 	if *by != "created" || (!createdStartOK && !createdEndOK) {
-		if pretty, err := prettyJSON(respBytes); err == nil {
+		if pretty, err := core.PrettyJSON(respBytes); err == nil {
 			fmt.Println(pretty)
 			return
 		}
@@ -177,7 +178,7 @@ func main() {
 	}
 	var ar apiResp
 	if err := json.Unmarshal(respBytes, &ar); err != nil {
-		die("decode: %v", err)
+		core.Die("decode: %v", err)
 	}
 
 	filtered := make([]json.RawMessage, 0, len(ar.Requests))
@@ -188,7 +189,7 @@ func main() {
 			continue
 		}
 		// Parse createdAt
-		ct, err := parseFlexibleRFC3339(c.CreatedAt)
+		ct, err := core.ParseFlexibleRFC3339(c.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -239,12 +240,12 @@ func main() {
 			continue
 		}
 
-		startUTC, err := utils.ParseTimeAny(r.TimeOffPeriod.Period.Start)
+		startUTC, err := core.ParseTimeAny(r.TimeOffPeriod.Period.Start)
 		if err != nil {
 			log.Printf("skip %s: bad period.start: %v", r.ID, err)
 			continue
 		}
-		endUTC, err := utils.ParseTimeAny(r.TimeOffPeriod.Period.End)
+		endUTC, err := core.ParseTimeAny(r.TimeOffPeriod.Period.End)
 		if err != nil {
 			log.Printf("skip %s: bad period.end: %v", r.ID, err)
 			continue
@@ -299,40 +300,4 @@ func main() {
 				r.ID, r.UserEmail, calID, startDate, endDate)
 		}
 	}
-}
-
-// Utils
-func die(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "error: "+format+"\n", args...)
-	os.Exit(1)
-}
-
-func parseFlexibleRFC3339(s string) (time.Time, error) {
-	return utils.ParseTimeAny(s)
-}
-
-// Clockify expects YYYY-MM-DDTHH:MM:SS.ssssssZ (microseconds).
-// https://docs.clockify.me/#tag/Time-Off/operation/getTimeOffRequest
-func formatClockify(t time.Time) string {
-	return t.UTC().Format("2006-01-02T15:04:05.000000Z")
-}
-
-func parseAndFormatClockifyTime(s string) (string, error) {
-	t, err := utils.ParseTimeAny(s)
-	if err != nil {
-		return "", fmt.Errorf("cannot parse time %q: %w", s, err)
-	}
-	return formatClockify(t), nil
-}
-
-func prettyJSON(b []byte) (string, error) {
-	var v any
-	if err := json.Unmarshal(b, &v); err != nil {
-		return "", err
-	}
-	out, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
 }
