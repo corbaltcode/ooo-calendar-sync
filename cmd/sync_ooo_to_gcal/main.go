@@ -223,11 +223,11 @@ func main() {
 	ctx := context.Background()
 	b, err := os.ReadFile("service-account.json")
 	if err != nil {
-		log.Fatalf("read service-account.json: %v", err)
+		core.Die("read service-account.json: %v", err)
 	}
 	jwtCfg, err := google.JWTConfigFromJSON(b, calendar.CalendarScope)
 	if err != nil {
-		log.Fatalf("JWT config: %v", err)
+		core.Die("JWT config: %v", err)
 	}
 
 	calendarIDs := []string{"primary"}
