@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -141,52 +140,9 @@ func main() {
 		return
 	}
 
-	// Filter (in memory) by createdAt property.
-	// Parse only enough to filter, but keep original objects intact.
-	type createdOnly struct {
-		CreatedAt string `json:"createdAt"`
-	}
-	type apiResp struct {
-		Count    int               `json:"count"`
-		Requests []json.RawMessage `json:"requests"`
-	}
-	var ar apiResp
-	if err := json.Unmarshal(respBytes, &ar); err != nil {
-		core.Die("decode: %v", err)
-	}
-
-	filtered := make([]json.RawMessage, 0, len(ar.Requests))
-	for _, raw := range ar.Requests {
-		var c createdOnly
-		if err := json.Unmarshal(raw, &c); err != nil {
-			// If a record can't be parsed, skip
-			continue
-		}
-		// Parse createdAt
-		ct, err := core.ParseFlexibleRFC3339(c.CreatedAt)
-		if err != nil {
-			continue
-		}
-		ct = ct.UTC()
-
-		if createdStartOK && ct.Before(createdStart) {
-			continue
-		}
-		// Treat createdEnd as exclusive; use `!ct.After(createdEnd)`` for inclusive.
-		if createdEndOK && !ct.Before(createdEnd) {
-			continue
-		}
-		filtered = append(filtered, raw)
-	}
-
-	var env envelope
-	for _, raw := range filtered {
-		var r request
-		if err := json.Unmarshal(raw, &r); err != nil {
-			log.Printf("skipping bad request: %v", err)
-			continue
-		}
-		env.Requests = append(env.Requests, r)
+	env, err := core.FilterByCreatedAt(respBytes, &createdStart, &createdEnd)
+	if err != nil {
+		core.Die("filter: %v", err)
 	}
 
 	if len(env.Requests) == 0 {
