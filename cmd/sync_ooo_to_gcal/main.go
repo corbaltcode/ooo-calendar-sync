@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"ooo-calendar-sync/core"
 	"os"
 	"strings"
@@ -75,14 +74,14 @@ func main() {
 	if *createdStartStr != "" {
 		t, err := core.ParseFlexibleRFC3339(*createdStartStr)
 		if err != nil {
-			log.Fatalf("invalid -createdStart: %v", err)
+			core.Die("invalid -createdStart: %v", err)
 		}
 		createdStart, createdStartOK = t.UTC(), true
 	}
 	if *createdEndStr != "" {
 		t, err := core.ParseFlexibleRFC3339(*createdEndStr)
 		if err != nil {
-			log.Fatalf("invalid -createdEnd: %v", err)
+			core.Die("invalid -createdEnd: %v", err)
 		}
 		createdEnd, createdEndOK = t.UTC(), true
 	}
