@@ -138,7 +138,7 @@ func main() {
 		return
 	}
 
-	env, err := core.FilterByCreatedAt(respBytes, &createdStart, &createdEnd)
+	env, err := core.FilterByCreatedAt(respBytes, createdStart, createdEnd)
 	if err != nil {
 		core.Die("filter: %v", err)
 	}

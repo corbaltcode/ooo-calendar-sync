@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd *time.Time) (Envelope, error) {
+// Filter a raw Clockify response for out-of-office requests that were created within the given time span.
+func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (Envelope, error) {
 	// Decode top-level API response into raw messages
 	type apiResp struct {
 		Count    int               `json:"count"`
@@ -35,10 +36,10 @@ func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd *time.Time) (E
 		}
 		ct = ct.UTC()
 
-		if createdStart != nil && ct.Before(*createdStart) {
+		if ct.Before(createdStart) {
 			continue
 		}
-		if createdEnd != nil && !ct.Before(*createdEnd) { // exclusive
+		if !ct.Before(createdEnd) { // exclusive
 			continue
 		}
 
