@@ -11,7 +11,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Request, calendarIDs []string) error {
+func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []ClockifyRequest, calendarIDs []string) error {
 	for _, r := range requests {
 		// Load user's local timezone
 		loc, err := time.LoadLocation(r.UserTimeZone)

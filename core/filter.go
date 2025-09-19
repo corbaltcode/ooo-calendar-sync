@@ -7,7 +7,7 @@ import (
 )
 
 // Filter a raw Clockify response for out-of-office requests that were created within the given time span.
-func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (Envelope, error) {
+func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (ClockifyEnvelope, error) {
 	// Decode top-level API response into raw messages
 	type apiResp struct {
 		Count    int               `json:"count"`
@@ -15,7 +15,7 @@ func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (En
 	}
 	var ar apiResp
 	if err := json.Unmarshal(respBytes, &ar); err != nil {
-		return Envelope{}, err
+		return ClockifyEnvelope{}, err
 	}
 
 	// Step 1: filter JSON by createdAt
@@ -46,9 +46,9 @@ func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (En
 		filtered = append(filtered, raw)
 	}
 
-	var env Envelope
+	var env ClockifyEnvelope
 	for _, raw := range filtered {
-		var r Request
+		var r ClockifyRequest
 		if err := json.Unmarshal(raw, &r); err != nil {
 			log.Printf("skipping bad request: %v", err)
 			continue

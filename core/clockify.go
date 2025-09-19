@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-type Envelope struct {
-	Requests []Request `json:"requests"`
+type ClockifyEnvelope struct {
+	Requests []ClockifyRequest `json:"requests"`
 }
 
-type Request struct {
+type ClockifyRequest struct {
 	ID         string `json:"id"`
 	CreatedAt  string `json:"createdAt"`
 	PolicyName string `json:"policyName"`
@@ -29,7 +29,7 @@ type Request struct {
 	} `json:"timeOffPeriod"`
 }
 
-type RequestPayload struct {
+type ClockifyRequestPayload struct {
 	Start    *string  `json:"start,omitempty"`
 	End      *string  `json:"end,omitempty"`
 	Page     int      `json:"page,omitempty"`
@@ -37,7 +37,7 @@ type RequestPayload struct {
 	Statuses []string `json:"statuses,omitempty"`
 }
 
-func FetchClockifyRequests(apiKey, workspaceID string, payload RequestPayload) ([]byte, error) {
+func FetchClockifyRequests(apiKey, workspaceID string, payload ClockifyRequestPayload) ([]byte, error) {
 	url := fmt.Sprintf("https://api.clockify.me/api/v1/workspaces/%s/time-off/requests", workspaceID)
 
 	body, err := json.Marshal(payload)

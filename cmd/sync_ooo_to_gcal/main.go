@@ -14,33 +14,6 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type envelope struct {
-	Requests []request `json:"requests"`
-}
-type request struct {
-	ID         string `json:"id"`
-	CreatedAt  string `json:"createdAt"`
-	PolicyName string `json:"policyName"`
-
-	UserEmail    string `json:"userEmail"`
-	UserTimeZone string `json:"userTimeZone"`
-
-	TimeOffPeriod struct {
-		Period struct {
-			Start string `json:"start"`
-			End   string `json:"end"`
-		} `json:"period"`
-	} `json:"timeOffPeriod"`
-}
-
-type requestPayload struct {
-	Start    *string  `json:"start,omitempty"`
-	End      *string  `json:"end,omitempty"`
-	Page     int      `json:"page,omitempty"`
-	PageSize int      `json:"pageSize,omitempty"`
-	Statuses []string `json:"statuses,omitempty"`
-}
-
 func main() {
 	var (
 		startStr        = flag.String("start", "", "Start (RFC3339-ish, e.g. 2025-08-01T00:00:00Z) — optional")
@@ -111,7 +84,7 @@ func main() {
 		}
 	}
 
-	payload := core.RequestPayload{
+	payload := core.ClockifyRequestPayload{
 		Start:    startPtr,
 		End:      endPtr,
 		Page:     *page,
