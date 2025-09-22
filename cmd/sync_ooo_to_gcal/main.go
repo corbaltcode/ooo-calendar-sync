@@ -24,8 +24,8 @@ func main() {
 		startPage       = flag.Int("page", 1, "Page number (default 1)")
 		pageSize        = flag.Int("pageSize", 50, "Page size (1..200)")
 		filterBy        = flag.String("by", "period", `Date filter mode: "period" (default) or "created"`)
-		createdStartStr = flag.String("createdStart", "", "Filter time-off requests creation >= this instant (RFC3339 or date-only)")
-		createdEndStr   = flag.String("createdEnd", "", "Filter time-off requests creation <  this instant (RFC3339 or date-only)")
+		createdStartStr = flag.String("createdStart", "", "Filter time-off requests by creation time >= this instant (RFC3339 or date-only)")
+		createdEndStr   = flag.String("createdEnd", "", "Filter time-off requests by creation time <  this instant (RFC3339 or date-only)")
 	)
 	flag.Parse()
 	if err := godotenv.Load(); err != nil {
