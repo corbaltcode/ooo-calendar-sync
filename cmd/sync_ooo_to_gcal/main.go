@@ -60,6 +60,36 @@ func main() {
 		createdEnd, createdEndOK = t.UTC(), true
 	}
 
+	if *startPage <= 0 {
+		core.Die("invalid -page: must be > 0")
+	}
+
+	if *pageSize <= 0 {
+		core.Die("invalid -pageSize: must be > 0")
+	}
+
+	validFilterBys := map[string]bool{"period": true, "created": true}
+	if !validFilterBys[*filterBy] {
+		core.Die("invalid -by: must be 'period' or 'created'")
+	}
+
+	validStatuses := map[string]bool{
+		"PENDING":  true,
+		"APPROVED": true,
+		"REJECTED": true,
+		"ALL":      true,
+	}
+
+	var statuses []string
+	for _, s := range strings.Split(*statusesStr, ",") {
+		s = strings.ToUpper(strings.TrimSpace(s))
+
+		if !validStatuses[s] {
+			core.Die("invalid -statuses value: %q (must be PENDING, APPROVED, REJECTED, ALL)", s)
+		}
+		statuses = append(statuses, s)
+	}
+
 	// Build request payload.
 	var startPtr, endPtr *string
 	if *periodStartStr != "" {
@@ -75,14 +105,6 @@ func main() {
 			core.Die("invalid -end time: %v", err)
 		}
 		endPtr = &ts
-	}
-
-	var statuses []string
-	for _, s := range strings.Split(*statusesStr, ",") {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			statuses = append(statuses, strings.ToUpper(s))
-		}
 	}
 
 	payload := core.ClockifyRequestPayload{
