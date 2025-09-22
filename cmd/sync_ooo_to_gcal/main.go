@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"os"
@@ -147,9 +148,15 @@ func main() {
 	}
 
 	ctx := context.Background()
-	b, err := os.ReadFile("service-account.json")
+
+	credB64 := os.Getenv("GOOGLE_SERVICE_ACCOUNT_JSON_B64")
+	if credB64 == "" {
+		core.Die("missing env GOOGLE_SERVICE_ACCOUNT_JSON_B64")
+	}
+
+	b, err := base64.StdEncoding.DecodeString(credB64)
 	if err != nil {
-		core.Die("read service-account.json: %v", err)
+		core.Die("invalid base64 in GOOGLE_SERVICE_ACCOUNT_JSON_B64: %v", err)
 	}
 
 	jwtCfg, err := google.JWTConfigFromJSON(b, calendar.CalendarScope)
