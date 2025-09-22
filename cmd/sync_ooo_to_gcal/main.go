@@ -96,7 +96,9 @@ func main() {
 		core.Die("when -by=created is used, both -start and -end must be provided")
 	}
 
-	respBytes, err := core.FetchClockifyRequests(apiKey, workspaceID, payload)
+	client := core.NewClockifyClient(apiKey)
+
+	respBytes, err := core.FetchClockifyRequests(client, workspaceID, payload)
 	if err != nil {
 		core.Die("fetch clockify: %v", err)
 	}

@@ -37,8 +37,41 @@ type ClockifyRequestPayload struct {
 	Statuses []string `json:"statuses,omitempty"`
 }
 
-func FetchClockifyRequests(apiKey, workspaceID string, payload ClockifyRequestPayload) ([]byte, error) {
-	url := fmt.Sprintf("https://api.clockify.me/api/v1/workspaces/%s/time-off/requests", workspaceID)
+const defaultClockifyBaseURL = "https://api.clockify.me/api/v1"
+
+type ClockifyClient struct {
+	baseURL string
+	apiKey  string
+	http    *http.Client
+}
+
+func NewClockifyClient(apiKey string, opts ...func(*ClockifyClient)) *ClockifyClient {
+	client := &ClockifyClient{
+		baseURL: defaultClockifyBaseURL,
+		apiKey:  apiKey,
+		http:    &http.Client{Timeout: 30 * time.Second},
+	}
+	for _, opt := range opts {
+		opt(client)
+	}
+	return client
+}
+
+// For testing
+func WithClockifyBaseURL(baseURL string) func(*ClockifyClient) {
+	return func(c *ClockifyClient) {
+		c.baseURL = baseURL
+	}
+}
+
+func WithHTTPClient(h *http.Client) func(*ClockifyClient) {
+	return func(c *ClockifyClient) {
+		c.http = h
+	}
+}
+
+func FetchClockifyRequests(c *ClockifyClient, workspaceID string, payload ClockifyRequestPayload) ([]byte, error) {
+	url := fmt.Sprintf("%s/workspaces/%s/time-off/requests", c.baseURL, workspaceID)
 
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -50,10 +83,9 @@ func FetchClockifyRequests(apiKey, workspaceID string, payload ClockifyRequestPa
 		return nil, fmt.Errorf("new request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Api-Key", apiKey)
+	req.Header.Set("X-Api-Key", c.apiKey)
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}
