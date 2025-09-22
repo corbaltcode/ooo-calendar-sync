@@ -1,4 +1,4 @@
-module ooo-calendar-sync
+module github.com/corbaltcode/ooo-calendar-sync
 
 go 1.23.0
 

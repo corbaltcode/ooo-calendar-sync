@@ -8,7 +8,7 @@ import (
 
 // Filter a raw Clockify response for out-of-office requests that were created within the given time span.
 func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (ClockifyEnvelope, error) {
-	// Decode top-level API response into raw messages
+	// TODO: Split parsing and filtering into separate functions.
 	type apiResp struct {
 		Count    int               `json:"count"`
 		Requests []json.RawMessage `json:"requests"`
@@ -18,7 +18,6 @@ func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (Cl
 		return ClockifyEnvelope{}, err
 	}
 
-	// Step 1: filter JSON by createdAt
 	type createdOnly struct {
 		CreatedAt string `json:"createdAt"`
 	}

@@ -4,10 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"ooo-calendar-sync/core"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/corbaltcode/ooo-calendar-sync/core"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2/google"
