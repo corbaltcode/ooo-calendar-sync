@@ -1,87 +1,37 @@
-package main
+package core
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"time"
 
-	"ooo-calendar-sync/utils"
-
-	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 )
 
-type envelope struct {
-	Requests []request `json:"requests"`
-}
-
-type request struct {
-	ID         string `json:"id"`
-	CreatedAt  string `json:"createdAt"`
-	PolicyName string `json:"policyName"`
-
-	UserEmail    string `json:"userEmail"`
-	UserTimeZone string `json:"userTimeZone"`
-
-	TimeOffPeriod struct {
-		Period struct {
-			Start string `json:"start"`
-			End   string `json:"end"`
-		} `json:"period"`
-	} `json:"timeOffPeriod"`
-}
-
-func main() {
-	data, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		log.Fatalf("read stdin: %v", err)
-	}
-	var env envelope
-
-	if err := json.Unmarshal(data, &env); err != nil {
-		log.Fatalf("decode JSON: %v", err)
-	}
-	if len(env.Requests) == 0 {
-		fmt.Println("No requests to process.")
-		return
-	}
-
-	ctx := context.Background()
-	b, err := os.ReadFile("service-account.json")
-	if err != nil {
-		log.Fatalf("read service-account.json: %v", err)
-	}
-	jwtCfg, err := google.JWTConfigFromJSON(b, calendar.CalendarScope)
-	if err != nil {
-		log.Fatalf("JWT config: %v", err)
-	}
-
-	calendarIDs := []string{"primary"}
-
-	for _, r := range env.Requests {
-		// Load user's local times.
+func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []ClockifyRequest, calendarIDs []string) error {
+	for _, r := range requests {
+		// Load user's local timezone
 		loc, err := time.LoadLocation(r.UserTimeZone)
 		if err != nil {
 			log.Printf("skip %s: unknown tz %q: %v", r.ID, r.UserTimeZone, err)
 			continue
 		}
 
-		startUTC, err := utils.ParseTimeAny(r.TimeOffPeriod.Period.Start)
+		startUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.Start)
 		if err != nil {
 			log.Printf("skip %s: bad period.start: %v", r.ID, err)
 			continue
 		}
-		endUTC, err := utils.ParseTimeAny(r.TimeOffPeriod.Period.End)
+		endUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.End)
 		if err != nil {
 			log.Printf("skip %s: bad period.end: %v", r.ID, err)
 			continue
 		}
 
+		// Normalize to local dates
 		startLocal := startUTC.In(loc)
 		endLocal := endUTC.In(loc)
 
@@ -121,14 +71,17 @@ func main() {
 			},
 		}
 
+		// Insert into calendars
 		for _, calID := range calendarIDs {
 			_, err := srv.Events.Insert(calID, ev).Do()
 			if err != nil {
-				log.Printf("insert %s (user=%s cal=%s) failed: %v", r.ID, r.UserEmail, calID, err)
+				log.Printf("insert %s (user=%s cal=%s) failed: %v",
+					r.ID, r.UserEmail, calID, err)
 				continue
 			}
 			fmt.Printf("Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
 				r.ID, r.UserEmail, calID, startDate, endDate)
 		}
 	}
+	return nil
 }
