@@ -17,14 +17,14 @@ import (
 
 func main() {
 	var (
-		startStr        = flag.String("start", "", "Start (RFC3339-ish, e.g. 2025-08-01T00:00:00Z) — optional")
-		endStr          = flag.String("end", "", "End (RFC3339-ish, e.g. 2025-08-10T23:59:59Z) — optional")
+		periodStartStr  = flag.String("start", "", "Start of time-off period (RFC3339-ish, e.g. 2025-08-01T00:00:00Z)")
+		periodEndStr    = flag.String("end", "", "End of time-off period (RFC3339-ish, e.g. 2025-08-10T23:59:59Z)")
 		statusesStr     = flag.String("statuses", "APPROVED", "Comma-separated statuses: PENDING,APPROVED,REJECTED,ALL")
-		page            = flag.Int("page", 1, "Page number (default 1)")
+		startPage       = flag.Int("page", 1, "Page number (default 1)")
 		pageSize        = flag.Int("pageSize", 50, "Page size (1..200)")
-		by              = flag.String("by", "period", `Date filter mode: "period" (default) or "created"`)
-		createdStartStr = flag.String("createdStart", "", "Filter by createdAt >= this instant (RFC3339 or date-only)")
-		createdEndStr   = flag.String("createdEnd", "", "Filter by createdAt <  this instant (RFC3339 or date-only)")
+		filterBy        = flag.String("by", "period", `Date filter mode: "period" (default) or "created"`)
+		createdStartStr = flag.String("createdStart", "", "Filter time-off requests creation >= this instant (RFC3339 or date-only)")
+		createdEndStr   = flag.String("createdEnd", "", "Filter time-off requests creation <  this instant (RFC3339 or date-only)")
 	)
 	flag.Parse()
 	if err := godotenv.Load(); err != nil {
@@ -62,15 +62,15 @@ func main() {
 
 	// Build request payload.
 	var startPtr, endPtr *string
-	if *startStr != "" {
-		ts, err := core.ParseAndFormatClockifyTime(*startStr)
+	if *periodStartStr != "" {
+		ts, err := core.ParseAndFormatClockifyTime(*periodStartStr)
 		if err != nil {
 			core.Die("invalid -start time: %v", err)
 		}
 		startPtr = &ts
 	}
-	if *endStr != "" {
-		ts, err := core.ParseAndFormatClockifyTime(*endStr)
+	if *periodEndStr != "" {
+		ts, err := core.ParseAndFormatClockifyTime(*periodEndStr)
 		if err != nil {
 			core.Die("invalid -end time: %v", err)
 		}
@@ -88,12 +88,12 @@ func main() {
 	payload := core.ClockifyRequestPayload{
 		Start:    startPtr,
 		End:      endPtr,
-		Page:     *page,
+		Page:     *startPage,
 		PageSize: *pageSize,
 		Statuses: statuses,
 	}
 
-	if *by == "created" && (payload.Start == nil || payload.End == nil) {
+	if *filterBy == "created" && (payload.Start == nil || payload.End == nil) {
 		core.Die("when -by=created is used, both -start and -end must be provided")
 	}
 
@@ -105,7 +105,7 @@ func main() {
 	}
 
 	// Print results and early return if not filtering by `createdAt`.
-	if *by != "created" || (!createdStartOK && !createdEndOK) {
+	if *filterBy != "created" || (!createdStartOK && !createdEndOK) {
 		if pretty, err := core.PrettyJSON(respBytes); err == nil {
 			fmt.Println(pretty)
 			return
