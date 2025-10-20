@@ -27,7 +27,7 @@ type Event struct {
 	PageSize     int      `json:"pageSize"`
 }
 
-func run(ctx context.Context, start, end, createdStart, createdEnd string, statuses []string, by string, pageSize int) {
+func run(ctx context.Context, periodStart, periodEnd, createdStart, createdEnd string, statuses []string, filterBy string, pageSize int) {
 	apiKey := os.Getenv("CLOCKIFY_API_KEY")
 	if apiKey == "" {
 		core.Die("missing env CLOCKIFY_API_KEY")
@@ -41,22 +41,51 @@ func run(ctx context.Context, start, end, createdStart, createdEnd string, statu
 		core.Die("missing env GOOGLE_SERVICE_ACCOUNT_JSON_B64")
 	}
 
-	client := core.NewClockifyClient(apiKey)
+	if pageSize <= 0 {
+		core.Die("invalid pageSize: must be > 0")
+	}
+
+	if filterBy == "" {
+		core.Die("missing required parameter: by")
+	}
+
+	validFilterBys := map[string]bool{"period": true, "created": true}
+	if !validFilterBys[filterBy] {
+		core.Die("invalid -by: must be 'period' or 'created'")
+	}
 
 	var startPtr, endPtr *string
-	if start != "" {
-		ts, err := core.ParseAndFormatClockifyTime(start)
+	if periodStart != "" {
+		ts, err := core.ParseAndFormatClockifyTime(periodStart)
 		if err != nil {
 			core.Die("invalid start time: %v", err)
 		}
 		startPtr = &ts
 	}
-	if end != "" {
-		ts, err := core.ParseAndFormatClockifyTime(end)
+	if periodEnd != "" {
+		ts, err := core.ParseAndFormatClockifyTime(periodEnd)
 		if err != nil {
 			core.Die("invalid end time: %v", err)
 		}
 		endPtr = &ts
+	}
+
+	validStatuses := map[string]bool{
+		"PENDING":  true,
+		"APPROVED": true,
+		"REJECTED": true,
+		"ALL":      true,
+	}
+
+	if len(statuses) == 0 {
+		core.Die("missing or empty statuses list")
+	}
+
+	for _, s := range statuses {
+		s = strings.ToUpper(strings.TrimSpace(s))
+		if !validStatuses[s] {
+			core.Die("invalid statuses value: %q (must be one of PENDING, APPROVED, REJECTED, ALL)", s)
+		}
 	}
 
 	payload := core.ClockifyRequestPayload{
@@ -67,32 +96,44 @@ func run(ctx context.Context, start, end, createdStart, createdEnd string, statu
 		Statuses: statuses,
 	}
 
+	if filterBy == "created" && (payload.Start == nil || payload.End == nil) {
+		core.Die("when -by=created is used, both -start and -end must be provided")
+	}
+
+	client := core.NewClockifyClient(apiKey)
+
 	respBytes, err := core.FetchClockifyRequests(client, workspaceID, payload)
 	if err != nil {
 		core.Die("fetch clockify: %v", err)
 	}
 
-	if by != "created" || createdStart == "" || createdEnd == "" {
+	var createdStartT, createdEndT time.Time
+	var createdStartOK, createdEndOK bool
+
+	if createdStart != "" {
+		t, err := core.ParseFlexibleRFC3339(createdStart)
+		if err != nil {
+			core.Die("invalid createdStart: %v", err)
+		}
+		createdStartT, createdStartOK = t.UTC(), true
+	}
+
+	if createdEnd != "" {
+		t, err := core.ParseFlexibleRFC3339(createdEnd)
+		if err != nil {
+			core.Die("invalid createdEnd: %v", err)
+		}
+		createdEndT, createdEndOK = t.UTC(), true
+	}
+
+	// Print results and early return if not filtering by createdAt.
+	if filterBy != "created" || (!createdStartOK && !createdEndOK) {
 		if pretty, err := core.PrettyJSON(respBytes); err == nil {
 			fmt.Println(pretty)
 		} else {
 			fmt.Println(string(respBytes))
 		}
 		return
-	}
-
-	var createdStartT, createdEndT time.Time
-	if createdStart != "" {
-		createdStartT, err = core.ParseFlexibleRFC3339(createdStart)
-		if err != nil {
-			core.Die("invalid createdStart: %v", err)
-		}
-	}
-	if createdEnd != "" {
-		createdEndT, err = core.ParseFlexibleRFC3339(createdEnd)
-		if err != nil {
-			core.Die("invalid createdEnd: %v", err)
-		}
 	}
 
 	env, err := core.FilterByCreatedAt(respBytes, createdStartT, createdEndT)
@@ -130,28 +171,6 @@ func handler(ctx context.Context, e json.RawMessage) error {
 		}
 	}
 
-	if ev.CreatedStart == "" {
-		core.Die("missing required parameter: createdStart")
-	}
-	if ev.CreatedEnd == "" {
-		core.Die("missing required parameter: createdEnd")
-	}
-	if len(ev.Statuses) == 0 {
-		core.Die("missing required parameter: statuses")
-	}
-	if ev.PageSize == 0 {
-		core.Die("missing required parameter: pageSize")
-	}
-	if ev.By == "" {
-		core.Die("missing required parameter: by")
-	}
-
-	if ev.By == "period" {
-		if ev.Start == "" || ev.End == "" {
-			core.Die("when 'by=period' is used, both start and end must be provided")
-		}
-	}
-
 	run(ctx, ev.Start, ev.End, ev.CreatedStart, ev.CreatedEnd, ev.Statuses, ev.By, ev.PageSize)
 	return nil
 }
@@ -165,8 +184,8 @@ func main() {
 
 	// CLI mode
 	var (
-		startStr        = flag.String("start", "", "Period start (RFC3339)")
-		endStr          = flag.String("end", "", "Period end (RFC3339)")
+		periodStartStr  = flag.String("start", "", "Period start (RFC3339)")
+		periodEndStr    = flag.String("end", "", "Period end (RFC3339)")
 		statusesStr     = flag.String("statuses", "APPROVED", "Comma-separated statuses")
 		filterBy        = flag.String("by", "created", "Filter mode: period|created")
 		createdStartStr = flag.String("createdStart", "", "Created >= (RFC3339)")
@@ -183,5 +202,5 @@ func main() {
 		statuses = append(statuses, strings.ToUpper(strings.TrimSpace(s)))
 	}
 
-	run(context.Background(), *startStr, *endStr, *createdStartStr, *createdEndStr, statuses, *filterBy, *pageSize)
+	run(context.Background(), *periodStartStr, *periodEndStr, *createdStartStr, *createdEndStr, statuses, *filterBy, *pageSize)
 }
