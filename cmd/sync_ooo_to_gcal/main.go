@@ -18,16 +18,16 @@ import (
 )
 
 type Event struct {
-	Start        string   `json:"start"`
-	End          string   `json:"end"`
+	PeriodStart  string   `json:"start"`
+	PeriodEnd    string   `json:"end"`
 	CreatedStart string   `json:"createdStart"`
 	CreatedEnd   string   `json:"createdEnd"`
 	Statuses     []string `json:"statuses"`
-	By           string   `json:"by"`
+	FilterBy     string   `json:"by"`
 	PageSize     int      `json:"pageSize"`
 }
 
-func run(ctx context.Context, periodStart, periodEnd, createdStart, createdEnd string, statuses []string, filterBy string, pageSize int) {
+func (e *Event) Run(ctx context.Context) {
 	apiKey := os.Getenv("CLOCKIFY_API_KEY")
 	if apiKey == "" {
 		core.Die("missing env CLOCKIFY_API_KEY")
@@ -41,29 +41,29 @@ func run(ctx context.Context, periodStart, periodEnd, createdStart, createdEnd s
 		core.Die("missing env GOOGLE_SERVICE_ACCOUNT_JSON_B64")
 	}
 
-	if pageSize <= 0 {
+	if e.PageSize <= 0 {
 		core.Die("invalid pageSize: must be > 0")
 	}
 
-	if filterBy == "" {
+	if e.FilterBy == "" {
 		core.Die("missing required parameter: by")
 	}
 
 	validFilterBys := map[string]bool{"period": true, "created": true}
-	if !validFilterBys[filterBy] {
+	if !validFilterBys[e.FilterBy] {
 		core.Die("invalid -by: must be 'period' or 'created'")
 	}
 
 	var startPtr, endPtr *string
-	if periodStart != "" {
-		ts, err := core.ParseAndFormatClockifyTime(periodStart)
+	if e.PeriodStart != "" {
+		ts, err := core.ParseAndFormatClockifyTime(e.PeriodStart)
 		if err != nil {
 			core.Die("invalid start time: %v", err)
 		}
 		startPtr = &ts
 	}
-	if periodEnd != "" {
-		ts, err := core.ParseAndFormatClockifyTime(periodEnd)
+	if e.PeriodEnd != "" {
+		ts, err := core.ParseAndFormatClockifyTime(e.PeriodEnd)
 		if err != nil {
 			core.Die("invalid end time: %v", err)
 		}
@@ -77,11 +77,11 @@ func run(ctx context.Context, periodStart, periodEnd, createdStart, createdEnd s
 		"ALL":      true,
 	}
 
-	if len(statuses) == 0 {
+	if len(e.Statuses) == 0 {
 		core.Die("missing or empty statuses list")
 	}
 
-	for _, s := range statuses {
+	for _, s := range e.Statuses {
 		s = strings.ToUpper(strings.TrimSpace(s))
 		if !validStatuses[s] {
 			core.Die("invalid statuses value: %q (must be one of PENDING, APPROVED, REJECTED, ALL)", s)
@@ -92,11 +92,11 @@ func run(ctx context.Context, periodStart, periodEnd, createdStart, createdEnd s
 		Start:    startPtr,
 		End:      endPtr,
 		Page:     1,
-		PageSize: pageSize,
-		Statuses: statuses,
+		PageSize: e.PageSize,
+		Statuses: e.Statuses,
 	}
 
-	if filterBy == "created" && (payload.Start == nil || payload.End == nil) {
+	if e.FilterBy == "created" && (payload.Start == nil || payload.End == nil) {
 		core.Die("when -by=created is used, both -start and -end must be provided")
 	}
 
@@ -110,16 +110,16 @@ func run(ctx context.Context, periodStart, periodEnd, createdStart, createdEnd s
 	var createdStartT, createdEndT time.Time
 	var createdStartOK, createdEndOK bool
 
-	if createdStart != "" {
-		t, err := core.ParseFlexibleRFC3339(createdStart)
+	if e.CreatedStart != "" {
+		t, err := core.ParseFlexibleRFC3339(e.CreatedStart)
 		if err != nil {
 			core.Die("invalid createdStart: %v", err)
 		}
 		createdStartT, createdStartOK = t.UTC(), true
 	}
 
-	if createdEnd != "" {
-		t, err := core.ParseFlexibleRFC3339(createdEnd)
+	if e.CreatedEnd != "" {
+		t, err := core.ParseFlexibleRFC3339(e.CreatedEnd)
 		if err != nil {
 			core.Die("invalid createdEnd: %v", err)
 		}
@@ -127,7 +127,7 @@ func run(ctx context.Context, periodStart, periodEnd, createdStart, createdEnd s
 	}
 
 	// Print results and early return if not filtering by createdAt.
-	if filterBy != "created" || (!createdStartOK && !createdEndOK) {
+	if e.FilterBy != "created" || (!createdStartOK && !createdEndOK) {
 		if pretty, err := core.PrettyJSON(respBytes); err == nil {
 			fmt.Println(pretty)
 		} else {
@@ -171,7 +171,7 @@ func handler(ctx context.Context, e json.RawMessage) error {
 		}
 	}
 
-	run(ctx, ev.Start, ev.End, ev.CreatedStart, ev.CreatedEnd, ev.Statuses, ev.By, ev.PageSize)
+	ev.Run(ctx)
 	return nil
 }
 
@@ -202,5 +202,15 @@ func main() {
 		statuses = append(statuses, strings.ToUpper(strings.TrimSpace(s)))
 	}
 
-	run(context.Background(), *periodStartStr, *periodEndStr, *createdStartStr, *createdEndStr, statuses, *filterBy, *pageSize)
+	ev := Event{
+		PeriodStart:  *periodStartStr,
+		PeriodEnd:    *periodEndStr,
+		CreatedStart: *createdStartStr,
+		CreatedEnd:   *createdEndStr,
+		Statuses:     statuses,
+		FilterBy:     *filterBy,
+		PageSize:     *pageSize,
+	}
+
+	ev.Run(context.Background())
 }
