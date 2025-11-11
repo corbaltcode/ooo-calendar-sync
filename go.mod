@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.23.11
 
 require (
+	github.com/aws/aws-lambda-go v1.49.0
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/oauth2 v0.30.0
 	google.golang.org/api v0.242.0

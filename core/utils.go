@@ -6,9 +6,16 @@ import (
 	"os"
 )
 
+var IsLambda = os.Getenv("AWS_LAMBDA_RUNTIME_API") != ""
+
 func Die(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "error: "+format+"\n", args...)
-	os.Exit(1)
+	msg := fmt.Sprintf(format, args...)
+	if IsLambda {
+		panic(msg)
+	} else {
+		fmt.Fprintln(os.Stderr, msg)
+		os.Exit(1)
+	}
 }
 
 func PrettyJSON(b []byte) (string, error) {
