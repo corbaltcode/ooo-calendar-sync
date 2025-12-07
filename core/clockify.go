@@ -35,6 +35,7 @@ type ClockifyRequestPayload struct {
 	Page     int      `json:"page,omitempty"`
 	PageSize int      `json:"pageSize,omitempty"`
 	Statuses []string `json:"statuses,omitempty"`
+	Users    []string `json:"users,omitempty"`
 }
 
 const defaultClockifyBaseURL = "https://api.clockify.me/api/v1"

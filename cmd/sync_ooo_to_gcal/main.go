@@ -96,6 +96,12 @@ func (e *Event) Run(ctx context.Context) {
 		Statuses: e.Statuses,
 	}
 
+	// Development safety: force a single user via env var, if set.
+	if forcedSingleUser := os.Getenv("CLOCKIFY_FORCE_USER_ID"); forcedSingleUser != "" {
+		fmt.Printf("CLOCKIFY_FORCE_USER_ID active: only syncing user %s\n", forcedSingleUser)
+		payload.Users = []string{forcedSingleUser}
+	}
+
 	if e.FilterBy == "created" && (payload.Start == nil || payload.End == nil) {
 		core.Die("when -by=created is used, both -start and -end must be provided")
 	}
