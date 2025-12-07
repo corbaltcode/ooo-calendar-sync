@@ -94,6 +94,15 @@ func (e *Event) Run(ctx context.Context) {
 		Page:     1,
 		PageSize: e.PageSize,
 		Statuses: e.Statuses,
+		// Users: []string{
+		// 	Add specific user IDs
+		// },
+	}
+
+	// 🔒 Dev safety: force a single user via env var, if set.
+	if forced := os.Getenv("CLOCKIFY_FORCE_USER_ID"); forced != "" {
+		fmt.Printf("CLOCKIFY_FORCE_USER_ID active: only syncing user %s\n", forced)
+		payload.Users = []string{forced}
 	}
 
 	if e.FilterBy == "created" && (payload.Start == nil || payload.End == nil) {
@@ -169,6 +178,34 @@ func handler(ctx context.Context, e json.RawMessage) error {
 		if err := json.Unmarshal(e, &ev); err != nil {
 			core.Die("invalid JSON event: %v", err)
 		}
+	}
+
+	now := time.Now().UTC()
+
+	// Default: created window = past five minutes
+	if ev.CreatedEnd == "" {
+		ev.CreatedEnd = now.Format(time.RFC3339)
+	}
+	if ev.CreatedStart == "" {
+		ev.CreatedStart = now.Add(-5 * time.Minute).Format(time.RFC3339)
+	}
+
+	// Default: Looking at all requessted OOO periods from now -> +90 days
+	if ev.PeriodStart == "" {
+		ev.PeriodStart = now.Format(time.RFC3339)
+	}
+	if ev.PeriodEnd == "" {
+		ev.PeriodEnd = now.Add(90 * 24 * time.Hour).Format(time.RFC3339)
+	}
+
+	if len(ev.Statuses) == 0 {
+		ev.Statuses = []string{"APPROVED"} // Limit this to approved only.
+	}
+	if ev.FilterBy == "" {
+		ev.FilterBy = "created"
+	}
+	if ev.PageSize == 0 {
+		ev.PageSize = 50
 	}
 
 	ev.Run(ctx)
