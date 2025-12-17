@@ -38,10 +38,15 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 		y1, m1, d1 := startLocal.Date()
 		y2, m2, d2 := endLocal.Date()
 
-		startDate := time.Date(y1, m1, d1, 0, 0, 0, 0, loc).Format("2006-01-02")
+		// All-day local time window used for Events.List (TimeMin / TimeMax).
+		allDayStart := time.Date(y1, m1, d1, 0, 0, 0, 0, loc)
 		// Clockify is inclusive; GCal all-day is [start, end) exclusive.
 		// So cover the last OOO day by adding +1 local day to the end date.
-		endDate := time.Date(y2, m2, d2, 0, 0, 0, 0, loc).AddDate(0, 0, 1).Format("2006-01-02")
+		allDayEndExclusive := time.Date(y2, m2, d2, 0, 0, 0, 0, loc).AddDate(0, 0, 1)
+
+		// YYYY-MM-DD string format is used for the Insert event payload.
+		startDate := allDayStart.Format("2006-01-02")
+		endDate := allDayEndExclusive.Format("2006-01-02")
 
 		cfg := *jwtCfg
 		cfg.Subject = r.UserEmail
@@ -73,15 +78,44 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 
 		// Insert into calendars
 		for _, calID := range calendarIDs {
-			_, err := srv.Events.Insert(calID, ev).Do()
+			existing, err := findClockifyEvent(
+				ctx, srv, calID, r.ID,
+				allDayStart, allDayEndExclusive,
+			)
+
+			if err != nil {
+				log.Printf("lookup %s (user=%s cal=%s) failed: %v",
+					r.ID, r.UserEmail, calID, err)
+				continue
+			}
+
+			if existing != nil {
+				fmt.Printf(
+					"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)\n",
+					r.ID,
+					r.UserEmail,
+					calID,
+					existing.Id,
+					existing.Start.Date,
+					existing.End.Date,
+				)
+				continue
+			}
+
+			// No existing event
+			_, err = srv.Events.Insert(calID, ev).Do()
 			if err != nil {
 				log.Printf("insert %s (user=%s cal=%s) failed: %v",
 					r.ID, r.UserEmail, calID, err)
 				continue
 			}
-			fmt.Printf("Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
-				r.ID, r.UserEmail, calID, startDate, endDate)
+
+			fmt.Printf(
+				"Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
+				r.ID, r.UserEmail, calID, startDate, endDate,
+			)
 		}
+
 	}
 	return nil
 }
