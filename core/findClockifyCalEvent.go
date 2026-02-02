@@ -24,14 +24,11 @@ func findClockifyEvents(
 		TimeMax(timeMax.Format(time.RFC3339)).
 		SingleEvents(true).
 		ShowDeleted(false).
-		// Keep small but >1 so duplicates are visible
-		MaxResults(10).
 		Do()
 
 	if err != nil {
 		return nil, err
 	}
 
-	// events.Items will be nil or empty if no matches are found
 	return events.Items, nil
 }
