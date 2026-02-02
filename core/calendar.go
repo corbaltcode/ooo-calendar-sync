@@ -78,27 +78,28 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 
 		// Insert into calendars
 		for _, calID := range calendarIDs {
-			existing, err := findClockifyEvent(
+			existing, err := findClockifyEvents(
 				ctx, srv, calID, r.ID,
 				allDayStart, allDayEndExclusive,
 			)
-
 			if err != nil {
 				log.Printf("lookup %s (user=%s cal=%s) failed: %v",
 					r.ID, r.UserEmail, calID, err)
 				continue
 			}
 
-			if existing != nil {
-				log.Printf(
-					"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)\n",
-					r.ID,
-					r.UserEmail,
-					calID,
-					existing.Id,
-					existing.Start.Date,
-					existing.End.Date,
-				)
+			if len(existing) > 0 {
+				for _, e := range existing {
+					log.Printf(
+						"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)",
+						r.ID,
+						r.UserEmail,
+						calID,
+						e.Id,
+						e.Start.Date,
+						e.End.Date,
+					)
+				}
 				continue
 			}
 
