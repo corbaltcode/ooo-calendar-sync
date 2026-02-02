@@ -90,7 +90,7 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 			}
 
 			if existing != nil {
-				fmt.Printf(
+				log.Printf(
 					"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)\n",
 					r.ID,
 					r.UserEmail,
@@ -110,7 +110,7 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 				continue
 			}
 
-			fmt.Printf(
+			log.Printf(
 				"Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
 				r.ID, r.UserEmail, calID, startDate, endDate,
 			)
