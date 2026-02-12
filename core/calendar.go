@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -12,22 +13,27 @@ import (
 )
 
 func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []ClockifyRequest, calendarIDs []string) error {
+	var errs []error
+
 	for _, r := range requests {
 		// Load user's local timezone
 		loc, err := time.LoadLocation(r.UserTimeZone)
 		if err != nil {
 			log.Printf("skip %s: unknown tz %q: %v", r.ID, r.UserTimeZone, err)
+			errs = append(errs, fmt.Errorf("req=%s user=%s: unknown tz %q: %w", r.ID, r.UserEmail, r.UserTimeZone, err))
 			continue
 		}
 
 		startUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.Start)
 		if err != nil {
 			log.Printf("skip %s: bad period.start: %v", r.ID, err)
+			errs = append(errs, fmt.Errorf("req=%s user=%s: bad period.start: %w", r.ID, r.UserEmail, err))
 			continue
 		}
 		endUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.End)
 		if err != nil {
 			log.Printf("skip %s: bad period.end: %v", r.ID, err)
+			errs = append(errs, fmt.Errorf("req=%s user=%s: bad period.end: %w", r.ID, r.UserEmail, err))
 			continue
 		}
 
@@ -55,6 +61,7 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 		srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 		if err != nil {
 			log.Printf("user %s: calendar service error: %v", r.UserEmail, err)
+			errs = append(errs, fmt.Errorf("req=%s user=%s: calendar service error: %w", r.ID, r.UserEmail, err))
 			continue
 		}
 
@@ -85,6 +92,7 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 			if err != nil {
 				log.Printf("lookup %s (user=%s cal=%s) failed: %v",
 					r.ID, r.UserEmail, calID, err)
+				errs = append(errs, fmt.Errorf("req=%s user=%s cal=%s: lookup failed: %w", r.ID, r.UserEmail, calID, err))
 				continue
 			}
 
@@ -108,6 +116,7 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 			if err != nil {
 				log.Printf("insert %s (user=%s cal=%s) failed: %v",
 					r.ID, r.UserEmail, calID, err)
+				errs = append(errs, fmt.Errorf("req=%s user=%s cal=%s: insert failed: %w", r.ID, r.UserEmail, calID, err))
 				continue
 			}
 
@@ -118,5 +127,6 @@ func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []Clockif
 		}
 
 	}
-	return nil
+
+	return errors.Join(errs...)
 }
