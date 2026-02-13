@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -163,6 +164,7 @@ func (e *Event) Run(ctx context.Context) {
 
 	calendarIDs := []string{"primary"}
 	if err := core.InsertOOOEvents(ctx, jwtCfg, env.Requests, calendarIDs); err != nil {
+		log.Printf("Sync completed with errors: %v", err)
 		core.Die("insert events: %v", err)
 	}
 
