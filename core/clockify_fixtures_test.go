@@ -2,7 +2,7 @@ package core
 
 import "time"
 
-func mkReq(id, tz, start, end string) ClockifyRequest {
+func makeRequest(id, tz, start, end string) ClockifyRequest {
 	var r ClockifyRequest
 
 	r.ID = id
@@ -18,11 +18,11 @@ func mkReq(id, tz, start, end string) ClockifyRequest {
 }
 
 func fixtureBadTimeZone() ClockifyRequest {
-	return mkReq("fixture-bad-tz", "Not/A_Timezone", "2025-12-10T00:00:00Z", "2025-12-10T23:59:59Z")
+	return makeRequest("fixture-bad-time-zone", "Not/A_Timezone", "2025-12-10T00:00:00Z", "2025-12-10T23:59:59Z")
 }
 func fixtureInvalidStartDate() ClockifyRequest {
-	return mkReq("fixture-bad-start", "America/New_York", "not-a-date", "2025-12-10T23:59:59Z")
+	return makeRequest("fixture-bad-start", "America/New_York", "not-a-date", "2025-12-10T23:59:59Z")
 }
 func fixtureInvalidEndDate() ClockifyRequest {
-	return mkReq("fixture-bad-end", "America/New_York", "2025-12-10T00:00:00Z", "not-a-date")
+	return makeRequest("fixture-bad-end", "America/New_York", "2025-12-10T00:00:00Z", "not-a-date")
 }

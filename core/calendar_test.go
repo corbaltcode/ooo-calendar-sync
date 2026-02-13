@@ -24,12 +24,18 @@ func TestInsertOOOEvents_CollectsErrors(t *testing.T) {
 		t.Fatalf("expected non-nil error")
 	}
 
-	var multi interface{ Unwrap() []error }
-	if !errors.As(err, &multi) {
+	var multiErrors interface{ Unwrap() []error }
+	if !errors.As(err, &multiErrors) {
 		t.Fatalf("expected joined error with Unwrap() []error, got: %T", err)
 	}
 
-	if got := len(multi.Unwrap()); got != len(reqs) {
-		t.Fatalf("expected %d collected errors, got %d", len(reqs), got)
+	collectedErrCount := len(multiErrors.Unwrap())
+	expectedErrCount := len(reqs)
+
+	if collectedErrCount != expectedErrCount {
+		t.Fatalf("expected %d collected errors, got %d",
+			expectedErrCount,
+			collectedErrCount,
+		)
 	}
 }
