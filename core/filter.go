@@ -6,24 +6,33 @@ import (
 	"time"
 )
 
+type rawClockifyEnvelope struct {
+	Count    int               `json:"count"`
+	Requests []json.RawMessage `json:"requests"`
+}
+
+type createdOnly struct {
+	CreatedAt string `json:"createdAt"`
+}
+
+func ParseRawClockifyEnvelope(respBytes []byte) (rawClockifyEnvelope, error) {
+	var env rawClockifyEnvelope
+	if err := json.Unmarshal(respBytes, &env); err != nil {
+		return rawClockifyEnvelope{}, err
+	}
+	return env, nil
+}
+
 // Filter a raw Clockify response for out-of-office requests that were created within the given time span.
 func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (ClockifyEnvelope, error) {
-	// TODO: Split parsing and filtering into separate functions.
-	type apiResp struct {
-		Count    int               `json:"count"`
-		Requests []json.RawMessage `json:"requests"`
-	}
-	var ar apiResp
-	if err := json.Unmarshal(respBytes, &ar); err != nil {
+	rawEnv, err := ParseRawClockifyEnvelope(respBytes)
+	if err != nil {
 		return ClockifyEnvelope{}, err
 	}
 
-	type createdOnly struct {
-		CreatedAt string `json:"createdAt"`
-	}
-
-	filtered := make([]json.RawMessage, 0, len(ar.Requests))
-	for _, raw := range ar.Requests {
+	// TODO: Split filtering into a separate function.
+	filtered := make([]json.RawMessage, 0, len(rawEnv.Requests))
+	for _, raw := range rawEnv.Requests {
 		var c createdOnly
 		if err := json.Unmarshal(raw, &c); err != nil {
 			continue // skip if no createdAt
@@ -45,6 +54,7 @@ func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (Cl
 		filtered = append(filtered, raw)
 	}
 
+	// TODO: Split parsing into a separate functions.
 	var env ClockifyEnvelope
 	for _, raw := range filtered {
 		var r ClockifyRequest
