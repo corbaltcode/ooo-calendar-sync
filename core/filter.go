@@ -23,16 +23,15 @@ func ParseRawClockifyEnvelope(respBytes []byte) (rawClockifyEnvelope, error) {
 	return env, nil
 }
 
-// Filter a raw Clockify response for out-of-office requests that were created within the given time span.
-func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (ClockifyEnvelope, error) {
-	rawEnv, err := ParseRawClockifyEnvelope(respBytes)
-	if err != nil {
-		return ClockifyEnvelope{}, err
-	}
+// Filters raw request payloads by createdAt in [start, end].
+func FilterRawRequestsByCreatedAt(
+	rawRequests []json.RawMessage,
+	start, end time.Time,
+) []json.RawMessage {
 
-	// TODO: Split filtering into a separate function.
-	filtered := make([]json.RawMessage, 0, len(rawEnv.Requests))
-	for _, raw := range rawEnv.Requests {
+	filtered := make([]json.RawMessage, 0, len(rawRequests))
+
+	for _, raw := range rawRequests {
 		var c createdOnly
 		if err := json.Unmarshal(raw, &c); err != nil {
 			continue // skip if no createdAt
@@ -44,15 +43,26 @@ func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (Cl
 		}
 		ct = ct.UTC()
 
-		if ct.Before(createdStart) {
+		if ct.Before(start) {
 			continue
 		}
-		if !ct.Before(createdEnd) { // exclusive
+		if !ct.Before(end) { // exclusive
 			continue
 		}
 
 		filtered = append(filtered, raw)
 	}
+	return filtered
+}
+
+// Filter a raw Clockify response for out-of-office requests that were created within the given time span.
+func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (ClockifyEnvelope, error) {
+	rawEnv, err := ParseRawClockifyEnvelope(respBytes)
+	if err != nil {
+		return ClockifyEnvelope{}, err
+	}
+
+	filtered := FilterRawRequestsByCreatedAt(rawEnv.Requests, createdStart, createdEnd)
 
 	// TODO: Split parsing into a separate functions.
 	var env ClockifyEnvelope
