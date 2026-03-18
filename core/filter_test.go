@@ -3,9 +3,11 @@ package core
 import (
 	"bytes"
 	"encoding/json"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseRawClockifyEnvelope(t *testing.T) {
@@ -18,21 +20,11 @@ func TestParseRawClockifyEnvelope(t *testing.T) {
 	}`)
 
 	got, err := ParseRawClockifyEnvelope(respBytes)
-	if err != nil {
-		t.Fatalf("ParseRawClockifyEnvelope() error = %v", err)
-	}
+	require.NoError(t, err)
 
-	if got.Count != 2 {
-		t.Fatalf("got.Count = %d, want 2", got.Count)
-	}
-
-	if len(got.Requests) != 2 {
-		t.Fatalf("len(got.Requests) = %d, want 2", len(got.Requests))
-	}
-
-	if !bytes.Contains(got.Requests[0], []byte(`"id": "req-1"`)) {
-		t.Fatalf("first raw request does not contain expected JSON: %s", got.Requests[0])
-	}
+	assert.Equal(t, 2, got.Count)
+	assert.Len(t, got.Requests, 2)
+	assert.True(t, bytes.Contains(got.Requests[0], []byte(`"id": "req-1"`)))
 }
 
 func mustRawMessage(t *testing.T, v any) json.RawMessage {
@@ -94,21 +86,15 @@ func TestFilterRawRequestsByCreatedAt(t *testing.T) {
 
 	got := FilterRawRequestsByCreatedAt(rawRequests, rangeStart, rangeEnd)
 
-	if len(got) != 2 {
-		t.Fatalf("len(got) = %d, want 2", len(got))
-	}
+	require.Len(t, got, 2)
 
 	var gotIDs []string
 	for _, raw := range got {
 		var r ClockifyRequest
-		if err := json.Unmarshal(raw, &r); err != nil {
-			t.Fatalf("json.Unmarshal(filtered raw) error = %v", err)
-		}
+		require.NoError(t, json.Unmarshal(raw, &r))
 		gotIDs = append(gotIDs, r.ID)
 	}
 
 	wantIDs := []string{"at-start", "within-range"}
-	if !reflect.DeepEqual(gotIDs, wantIDs) {
-		t.Fatalf("got IDs = %v, want %v", gotIDs, wantIDs)
-	}
+	assert.Equal(t, wantIDs, gotIDs)
 }
