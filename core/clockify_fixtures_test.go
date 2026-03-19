@@ -3,12 +3,22 @@ package core
 import "time"
 
 func makeRequest(id, tz, start, end string) ClockifyRequest {
+	return makeRequestWithCreatedAt(
+		id,
+		tz,
+		start,
+		end,
+		time.Date(2025, 12, 1, 12, 0, 0, 0, time.UTC),
+	)
+}
+
+func makeRequestWithCreatedAt(id, tz, start, end string, createdAt time.Time) ClockifyRequest {
 	var r ClockifyRequest
 
 	r.ID = id
 	r.UserEmail = "fixture@example.com"
 	r.UserTimeZone = tz
-	r.CreatedAt = time.Date(2025, 12, 1, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	r.CreatedAt = createdAt.Format(time.RFC3339)
 	r.PolicyName = "Vacation"
 
 	r.TimeOffPeriod.Period.Start = start
