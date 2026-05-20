@@ -55,7 +55,7 @@ func FilterRawRequestsByCreatedAt(
 	return filtered
 }
 
-// ParseClockifyRequests converts raw request payloads into ClockifyRequest structs.
+// ParseClockifyRequests converts valid raw request payloads into ClockifyRequest structs and skips malformed JSON entries, logging each unmarshal error via log.Printf.
 func ParseClockifyRequests(rawRequests []json.RawMessage) []ClockifyRequest {
 	requests := make([]ClockifyRequest, 0, len(rawRequests))
 
