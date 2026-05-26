@@ -98,3 +98,19 @@ func TestFilterRawRequestsByCreatedAt(t *testing.T) {
 	wantIDs := []string{"at-start", "within-range"}
 	assert.Equal(t, wantIDs, gotIDs)
 }
+
+func TestParseClockifyRequests(t *testing.T) {
+	timeoffStart := "2025-12-10T00:00:00Z"
+	timeoffEnd := "2025-12-10T23:59:59Z"
+	timeZone := "America/New_York"
+
+	rawRequests := []json.RawMessage{
+		mustRawMessage(t, makeRequest("valid-request", timeZone, timeoffStart, timeoffEnd)),
+		json.RawMessage(`{not valid json}`),
+	}
+
+	got := ParseClockifyRequests(rawRequests)
+
+	require.Len(t, got, 1)
+	assert.Equal(t, "valid-request", got[0].ID)
+}

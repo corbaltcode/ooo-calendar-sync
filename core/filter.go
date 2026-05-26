@@ -55,6 +55,23 @@ func FilterRawRequestsByCreatedAt(
 	return filtered
 }
 
+// ParseClockifyRequests converts valid raw request payloads into ClockifyRequest structs and skips malformed JSON entries, logging each unmarshal error via log.Printf.
+func ParseClockifyRequests(rawRequests []json.RawMessage) []ClockifyRequest {
+	requests := make([]ClockifyRequest, 0, len(rawRequests))
+
+	for _, raw := range rawRequests {
+		var r ClockifyRequest
+		if err := json.Unmarshal(raw, &r); err != nil {
+			log.Printf("skipping bad request: %v", err)
+			continue
+		}
+
+		requests = append(requests, r)
+	}
+
+	return requests
+}
+
 // Filter a raw Clockify response for out-of-office requests that were created within the given time span.
 func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (ClockifyEnvelope, error) {
 	rawEnv, err := ParseRawClockifyEnvelope(respBytes)
@@ -64,16 +81,7 @@ func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (Cl
 
 	filtered := FilterRawRequestsByCreatedAt(rawEnv.Requests, createdStart, createdEnd)
 
-	// TODO: Split parsing into a separate functions.
-	var env ClockifyEnvelope
-	for _, raw := range filtered {
-		var r ClockifyRequest
-		if err := json.Unmarshal(raw, &r); err != nil {
-			log.Printf("skipping bad request: %v", err)
-			continue
-		}
-		env.Requests = append(env.Requests, r)
-	}
-
-	return env, nil
+	return ClockifyEnvelope{
+		Requests: ParseClockifyRequests(filtered),
+	}, nil
 }
