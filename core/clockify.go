@@ -27,6 +27,10 @@ type ClockifyRequest struct {
 			End   string `json:"end"`
 		} `json:"period"`
 	} `json:"timeOffPeriod"`
+
+	Status struct {
+		StatusType string `json:"statusType"`
+	} `json:"status"`
 }
 
 type ClockifyRequestPayload struct {
