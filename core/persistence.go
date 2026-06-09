@@ -6,20 +6,19 @@ import (
 )
 
 type SyncedClockifyRequest struct {
-	ClockifyRequestID string `json:"clockifyRequestId"`
-	UserID            string `json:"userId"`
-	UserEmail         string `json:"userEmail"`
-	Status            string `json:"status"`
+	ClockifyRequestID string `json:"clockifyRequestId" dynamodbav:"ClockifyRequestId"`
+	UserID            string `json:"userId" dynamodbav:"UserId"`
+	UserEmail         string `json:"userEmail" dynamodbav:"UserEmail"`
+	Status            string `json:"status" dynamodbav:"Status"`
 
-	PeriodStart string `json:"periodStart"`
-	PeriodEnd   string `json:"periodEnd"`
+	PeriodStart string `json:"periodStart" dynamodbav:"PeriodStart"`
+	PeriodEnd   string `json:"periodEnd" dynamodbav:"PeriodEnd"`
 
-	CreatedAt string `json:"createdAt"`
+	CreatedAt  string `json:"createdAt" dynamodbav:"CreatedAt"`
+	LastSeenAt string `json:"lastSeenAt" dynamodbav:"LastSeenAt"`
+	SyncState  string `json:"syncState" dynamodbav:"SyncState"`
 
-	GoogleCalendarEventID string `json:"googleCalendarEventId,omitempty"`
-
-	LastSeenAt string `json:"lastSeenAt"`
-	SyncState  string `json:"syncState"`
+	GoogleCalendarEventID string `json:"googleCalendarEventId,omitempty" dynamodbav:"GoogleCalendarEventId,omitempty"`
 }
 
 // ToDynamoItem converts a Clockify request into the persistence model
