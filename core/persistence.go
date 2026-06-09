@@ -28,7 +28,7 @@ type SyncedClockifyRequest struct {
 // toward a persistence layer that will eventually allow us to determine
 // whether corresponding Google Calendar events should be created,
 // updated, or deleted.
-func ToDynamoItem(r ClockifyRequest, now time.Time) (*SyncedClockifyRequest, error) {
+func (r *ClockifyRequest) ToDynamoItem(options ...func(*SyncedClockifyRequest)) (*SyncedClockifyRequest, error) {
 	if r.ID == "" {
 		return nil, errors.New("missing Clockify request ID")
 	}
@@ -36,14 +36,26 @@ func ToDynamoItem(r ClockifyRequest, now time.Time) (*SyncedClockifyRequest, err
 	item := &SyncedClockifyRequest{
 		ClockifyRequestID: r.ID,
 		Status:            r.Status.StatusType,
-		LastSeenAt:        now.UTC().Format(time.RFC3339),
 		SyncState:         "pending",
+		PeriodStart:       r.TimeOffPeriod.Period.Start,
+		PeriodEnd:         r.TimeOffPeriod.Period.End,
+		CreatedAt:         r.CreatedAt,
+		UserEmail:         r.UserEmail,
 	}
 
-	item.PeriodStart = r.TimeOffPeriod.Period.Start
-	item.PeriodEnd = r.TimeOffPeriod.Period.End
-	item.CreatedAt = r.CreatedAt
-	item.UserEmail = r.UserEmail
+	for _, opt := range options {
+		opt(item)
+	}
+
+	if item.LastSeenAt == "" {
+		item.LastSeenAt = time.Now().UTC().Format(time.RFC3339)
+	}
 
 	return item, nil
+}
+
+func WithLastSeenAt(now time.Time) func(*SyncedClockifyRequest) {
+	return func(item *SyncedClockifyRequest) {
+		item.LastSeenAt = now.UTC().Format(time.RFC3339)
+	}
 }

@@ -24,7 +24,7 @@ func TestToDynamoItem(t *testing.T) {
 	req.TimeOffPeriod.Period.Start = "2026-06-10T00:00:00Z"
 	req.TimeOffPeriod.Period.End = "2026-06-12T00:00:00Z"
 
-	item, err := ToDynamoItem(req, now)
+	item, err := req.ToDynamoItem(WithLastSeenAt(now))
 
 	require.NoError(t, err)
 	require.NotNil(t, item)
@@ -42,7 +42,9 @@ func TestToDynamoItem(t *testing.T) {
 func TestToDynamoItemReturnsErrorWhenRequestIDMissing(t *testing.T) {
 	now := time.Date(2026, 6, 8, 12, 0, 0, 0, time.UTC)
 
-	item, err := ToDynamoItem(ClockifyRequest{}, now)
+	req := ClockifyRequest{}
+
+	item, err := req.ToDynamoItem(WithLastSeenAt(now))
 
 	require.Error(t, err)
 	assert.Nil(t, item)
