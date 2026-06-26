@@ -58,3 +58,37 @@ func (s *DynamoStore) DeleteSyncedRequest(
 
 	return err
 }
+
+func (s *DynamoStore) GetSyncedRequest(
+	ctx context.Context,
+	clockifyRequestID string,
+) (*SyncedClockifyRequest, error) {
+	if clockifyRequestID == "" {
+		return nil, errors.New("missing Clockify request ID")
+	}
+
+	response, err := s.Client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: &s.TableName,
+		Key: map[string]types.AttributeValue{
+			"ClockifyRequestId": &types.AttributeValueMemberS{
+				Value: clockifyRequestID,
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Item) == 0 {
+		return nil, nil
+	}
+
+	var item SyncedClockifyRequest
+
+	if err := attributevalue.UnmarshalMap(response.Item, &item); err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
