@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/corbaltcode/ooo-calendar-sync/core"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2/google"
@@ -40,6 +42,11 @@ func (e *Event) Run(ctx context.Context) {
 	credB64 := os.Getenv("GOOGLE_SERVICE_ACCOUNT_JSON_B64")
 	if credB64 == "" {
 		core.Die("missing env GOOGLE_SERVICE_ACCOUNT_JSON_B64")
+	}
+
+	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
+	if tableName == "" {
+		core.Die("missing env DYNAMODB_TABLE_NAME")
 	}
 
 	if e.PageSize <= 0 {
@@ -150,6 +157,30 @@ func (e *Event) Run(ctx context.Context) {
 	if len(env.Requests) == 0 {
 		fmt.Println("No requests to process.")
 		return
+	}
+
+	awsCfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		core.Die("load AWS config: %v", err)
+	}
+
+	store := core.NewDynamoStore(
+		dynamodb.NewFromConfig(awsCfg),
+		tableName,
+	)
+
+	for _, req := range env.Requests {
+		existing, err := store.GetSyncedRequest(ctx, req.ID)
+		if err != nil {
+			core.Die("get synced request %s: %v", req.ID, err)
+		}
+
+		if existing != nil {
+			log.Printf("Clockify request %s already exists in DynamoDB", req.ID)
+			continue
+		}
+
+		log.Printf("Clockify request %s does not exist in DynamoDB yet", req.ID)
 	}
 
 	b, err := base64.StdEncoding.DecodeString(credB64)
