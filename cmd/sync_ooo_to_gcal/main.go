@@ -175,7 +175,7 @@ func (e *Event) Run(ctx context.Context) {
 		}
 
 		if existing != nil {
-			log.Printf("Skipping previously synced Clockify request %s", req.ID)
+			log.Printf("Skipping Clockify request %s because it already exists in DynamoDB", req.ID)
 			continue
 		}
 
