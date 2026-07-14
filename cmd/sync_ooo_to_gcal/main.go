@@ -154,10 +154,6 @@ func (e *Event) Run(ctx context.Context) {
 	if err != nil {
 		core.Die("filter: %v", err)
 	}
-	if len(env.Requests) == 0 {
-		fmt.Println("No requests to process.")
-		return
-	}
 
 	awsCfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -169,6 +165,9 @@ func (e *Event) Run(ctx context.Context) {
 		tableName,
 	)
 
+	// TODO: Move request filtering into the core package once the persistence layer is fully implemented.
+	var requestsToSync []core.ClockifyRequest
+
 	for _, req := range env.Requests {
 		existing, err := store.GetSyncedRequest(ctx, req.ID)
 		if err != nil {
@@ -176,11 +175,17 @@ func (e *Event) Run(ctx context.Context) {
 		}
 
 		if existing != nil {
-			log.Printf("Clockify request %s already exists in DynamoDB", req.ID)
+			log.Printf("Skipping Clockify request %s because it already exists in DynamoDB", req.ID)
 			continue
 		}
 
-		log.Printf("Clockify request %s does not exist in DynamoDB yet", req.ID)
+		log.Printf("Queueing new Clockify request %s for sync", req.ID)
+		requestsToSync = append(requestsToSync, req)
+	}
+
+	if len(requestsToSync) == 0 {
+		fmt.Println("No new requests to sync.")
+		return
 	}
 
 	b, err := base64.StdEncoding.DecodeString(credB64)
@@ -194,7 +199,7 @@ func (e *Event) Run(ctx context.Context) {
 	}
 
 	calendarIDs := []string{"primary"}
-	if err := core.InsertOOOEvents(ctx, jwtCfg, env.Requests, calendarIDs); err != nil {
+	if err := core.InsertOOOEvents(ctx, jwtCfg, requestsToSync, calendarIDs); err != nil {
 		log.Printf("Sync completed with errors: %v", err)
 		core.Die("insert events: %v", err)
 	}
