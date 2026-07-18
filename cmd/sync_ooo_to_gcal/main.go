@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -199,9 +200,38 @@ func (e *Event) Run(ctx context.Context) {
 	}
 
 	calendarIDs := []string{"primary"}
-	if err := core.InsertOOOEvents(ctx, jwtCfg, requestsToSync, calendarIDs); err != nil {
-		log.Printf("Sync completed with errors: %v", err)
-		core.Die("insert events: %v", err)
+	var syncErrs []error
+
+	for _, req := range requestsToSync {
+		if err := core.InsertOOOEvent(
+			ctx,
+			jwtCfg,
+			req,
+			calendarIDs,
+		); err != nil {
+			log.Printf(
+				"Failed to sync Clockify request %s: %v",
+				req.ID,
+				err,
+			)
+
+			syncErrs = append(
+				syncErrs,
+				fmt.Errorf("sync request %s: %w", req.ID, err),
+			)
+			continue
+		}
+
+		log.Printf(
+			"Successfully added Clockify request %s to Google Calendar",
+			req.ID,
+		)
+
+		// TODO: Convert request to a DynamoDB item and persist it.
+	}
+
+	if err := errors.Join(syncErrs...); err != nil {
+		core.Die("sync completed with errors: %v", err)
 	}
 
 	fmt.Println("Sync complete!")
