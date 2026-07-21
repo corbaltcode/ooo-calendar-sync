@@ -2,13 +2,13 @@ package core
 
 import (
 	"context"
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2/jwt"
 )
 
-func TestInsertOOOEvents_CollectsErrors(t *testing.T) {
+func TestInsertOOOEvent_ReturnsErrorsForInvalidRequests(t *testing.T) {
 	ctx := context.Background()
 	jwtCfg := &jwt.Config{}
 	calendarIDs := []string{"primary"}
@@ -19,23 +19,11 @@ func TestInsertOOOEvents_CollectsErrors(t *testing.T) {
 		fixtureInvalidEndDate(),
 	}
 
-	err := InsertOOOEvents(ctx, jwtCfg, reqs, calendarIDs)
-	if err == nil {
-		t.Fatalf("expected non-nil error")
-	}
+	for _, req := range reqs {
+		t.Run(req.ID, func(t *testing.T) {
+			err := InsertOOOEvent(ctx, jwtCfg, req, calendarIDs)
 
-	var multiErrors interface{ Unwrap() []error }
-	if !errors.As(err, &multiErrors) {
-		t.Fatalf("expected joined error with Unwrap() []error, got: %T", err)
-	}
-
-	collectedErrCount := len(multiErrors.Unwrap())
-	expectedErrCount := len(reqs)
-
-	if collectedErrCount != expectedErrCount {
-		t.Fatalf("expected %d collected errors, got %d",
-			expectedErrCount,
-			collectedErrCount,
-		)
+			require.Error(t, err)
+		})
 	}
 }

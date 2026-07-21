@@ -12,120 +12,113 @@ import (
 	"google.golang.org/api/option"
 )
 
-func InsertOOOEvents(ctx context.Context, jwtCfg *jwt.Config, requests []ClockifyRequest, calendarIDs []string) error {
+func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, calendarIDs []string) error {
 	var errs []error
 
-	for _, r := range requests {
-		// Load user's local timezone
-		loc, err := time.LoadLocation(r.UserTimeZone)
-		if err != nil {
-			log.Printf("skip %s: unknown tz %q: %v", r.ID, r.UserTimeZone, err)
-			errs = append(errs, fmt.Errorf("req=%s user=%s: unknown tz %q: %w", r.ID, r.UserEmail, r.UserTimeZone, err))
-			continue
-		}
+	// Load user's local timezone
+	loc, err := time.LoadLocation(r.UserTimeZone)
+	if err != nil {
+		log.Printf("skip %s: unknown tz %q: %v", r.ID, r.UserTimeZone, err)
+		return fmt.Errorf("req=%s user=%s: unknown tz %q: %w", r.ID, r.UserEmail, r.UserTimeZone, err)
+	}
 
-		startUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.Start)
-		if err != nil {
-			log.Printf("skip %s: bad period.start: %v", r.ID, err)
-			errs = append(errs, fmt.Errorf("req=%s user=%s: bad period.start: %w", r.ID, r.UserEmail, err))
-			continue
-		}
-		endUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.End)
-		if err != nil {
-			log.Printf("skip %s: bad period.end: %v", r.ID, err)
-			errs = append(errs, fmt.Errorf("req=%s user=%s: bad period.end: %w", r.ID, r.UserEmail, err))
-			continue
-		}
+	startUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.Start)
+	if err != nil {
+		log.Printf("skip %s: bad period.start: %v", r.ID, err)
+		return fmt.Errorf("req=%s user=%s: bad period.start: %w", r.ID, r.UserEmail, err)
+	}
+	endUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.End)
+	if err != nil {
+		log.Printf("skip %s: bad period.end: %v", r.ID, err)
+		return fmt.Errorf("req=%s user=%s: bad period.end: %w", r.ID, r.UserEmail, err)
+	}
 
-		// Normalize to local dates
-		startLocal := startUTC.In(loc)
-		endLocal := endUTC.In(loc)
+	// Normalize to local dates
+	startLocal := startUTC.In(loc)
+	endLocal := endUTC.In(loc)
 
-		y1, m1, d1 := startLocal.Date()
-		y2, m2, d2 := endLocal.Date()
+	y1, m1, d1 := startLocal.Date()
+	y2, m2, d2 := endLocal.Date()
 
-		// All-day local time window used for Events.List (TimeMin / TimeMax).
-		allDayStart := time.Date(y1, m1, d1, 0, 0, 0, 0, loc)
-		// Clockify is inclusive; GCal all-day is [start, end) exclusive.
-		// So cover the last OOO day by adding +1 local day to the end date.
-		allDayEndExclusive := time.Date(y2, m2, d2, 0, 0, 0, 0, loc).AddDate(0, 0, 1)
+	// All-day local time window used for Events.List (TimeMin / TimeMax).
+	allDayStart := time.Date(y1, m1, d1, 0, 0, 0, 0, loc)
+	// Clockify is inclusive; GCal all-day is [start, end) exclusive.
+	// So cover the last OOO day by adding +1 local day to the end date.
+	allDayEndExclusive := time.Date(y2, m2, d2, 0, 0, 0, 0, loc).AddDate(0, 0, 1)
 
-		// YYYY-MM-DD string format is used for the Insert event payload.
-		startDate := allDayStart.Format("2006-01-02")
-		endDate := allDayEndExclusive.Format("2006-01-02")
+	// YYYY-MM-DD string format is used for the Insert event payload.
+	startDate := allDayStart.Format("2006-01-02")
+	endDate := allDayEndExclusive.Format("2006-01-02")
 
-		cfg := *jwtCfg
-		cfg.Subject = r.UserEmail
-		client := cfg.Client(ctx)
+	cfg := *jwtCfg
+	cfg.Subject = r.UserEmail
+	client := cfg.Client(ctx)
 
-		srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
-		if err != nil {
-			log.Printf("user %s: calendar service error: %v", r.UserEmail, err)
-			errs = append(errs, fmt.Errorf("req=%s user=%s: calendar service error: %w", r.ID, r.UserEmail, err))
-			continue
-		}
+	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		log.Printf("user %s: calendar service error: %v", r.UserEmail, err)
+		return fmt.Errorf("req=%s user=%s: calendar service error: %w", r.ID, r.UserEmail, err)
+	}
 
-		summary := "[TEST] OOO"
-		if r.PolicyName != "" {
-			summary = fmt.Sprintf("[TEST] OOO — %s", r.PolicyName)
-		}
-		ev := &calendar.Event{
-			Summary:     summary,
-			Description: fmt.Sprintf("Clockify request: %s\nCreatedAt: %s", r.ID, r.CreatedAt),
-			Start:       &calendar.EventDateTime{Date: startDate},
-			End:         &calendar.EventDateTime{Date: endDate}, // exclusive
-			// Attaching the Clockify request ID as a private extended property.
-			// TODO: Before inserting, check for an existing event with this key and insert event/skip:
-			ExtendedProperties: &calendar.EventExtendedProperties{
-				Private: map[string]string{
-					"clockifyRequestId": r.ID,
-				},
+	summary := "[TEST] OOO"
+	if r.PolicyName != "" {
+		summary = fmt.Sprintf("[TEST] OOO — %s", r.PolicyName)
+	}
+	ev := &calendar.Event{
+		Summary:     summary,
+		Description: fmt.Sprintf("Clockify request: %s\nCreatedAt: %s", r.ID, r.CreatedAt),
+		Start:       &calendar.EventDateTime{Date: startDate},
+		End:         &calendar.EventDateTime{Date: endDate}, // exclusive
+		// Attaching the Clockify request ID as a private extended property.
+		// TODO: Before inserting, check for an existing event with this key and insert event/skip:
+		ExtendedProperties: &calendar.EventExtendedProperties{
+			Private: map[string]string{
+				"clockifyRequestId": r.ID,
 			},
+		},
+	}
+
+	// Insert into calendars
+	for _, calID := range calendarIDs {
+		existing, err := findClockifyEvents(
+			ctx, srv, calID, r.ID,
+			allDayStart, allDayEndExclusive,
+		)
+		if err != nil {
+			log.Printf("lookup %s (user=%s cal=%s) failed: %v",
+				r.ID, r.UserEmail, calID, err)
+			errs = append(errs, fmt.Errorf("req=%s user=%s cal=%s: lookup failed: %w", r.ID, r.UserEmail, calID, err))
+			continue
 		}
 
-		// Insert into calendars
-		for _, calID := range calendarIDs {
-			existing, err := findClockifyEvents(
-				ctx, srv, calID, r.ID,
-				allDayStart, allDayEndExclusive,
-			)
-			if err != nil {
-				log.Printf("lookup %s (user=%s cal=%s) failed: %v",
-					r.ID, r.UserEmail, calID, err)
-				errs = append(errs, fmt.Errorf("req=%s user=%s cal=%s: lookup failed: %w", r.ID, r.UserEmail, calID, err))
-				continue
+		if len(existing) > 0 {
+			for _, e := range existing {
+				log.Printf(
+					"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)",
+					r.ID,
+					r.UserEmail,
+					calID,
+					e.Id,
+					e.Start.Date,
+					e.End.Date,
+				)
 			}
-
-			if len(existing) > 0 {
-				for _, e := range existing {
-					log.Printf(
-						"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)",
-						r.ID,
-						r.UserEmail,
-						calID,
-						e.Id,
-						e.Start.Date,
-						e.End.Date,
-					)
-				}
-				continue
-			}
-
-			// No existing event
-			_, err = srv.Events.Insert(calID, ev).Do()
-			if err != nil {
-				log.Printf("insert %s (user=%s cal=%s) failed: %v",
-					r.ID, r.UserEmail, calID, err)
-				errs = append(errs, fmt.Errorf("req=%s user=%s cal=%s: insert failed: %w", r.ID, r.UserEmail, calID, err))
-				continue
-			}
-
-			log.Printf(
-				"Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
-				r.ID, r.UserEmail, calID, startDate, endDate,
-			)
+			continue
 		}
 
+		// No existing event
+		_, err = srv.Events.Insert(calID, ev).Do()
+		if err != nil {
+			log.Printf("insert %s (user=%s cal=%s) failed: %v",
+				r.ID, r.UserEmail, calID, err)
+			errs = append(errs, fmt.Errorf("req=%s user=%s cal=%s: insert failed: %w", r.ID, r.UserEmail, calID, err))
+			continue
+		}
+
+		log.Printf(
+			"Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
+			r.ID, r.UserEmail, calID, startDate, endDate,
+		)
 	}
 
 	return errors.Join(errs...)
