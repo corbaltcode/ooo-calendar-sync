@@ -227,7 +227,42 @@ func (e *Event) Run(ctx context.Context) {
 			req.ID,
 		)
 
-		// TODO: Convert request to a DynamoDB item and persist it.
+		dynamoItem, err := req.ToDynamoItem()
+
+		if err != nil {
+			log.Printf(
+				"Failed to convert Clockify request %s to a DynamoDB item: %v",
+				req.ID,
+				err,
+			)
+
+			syncErrs = append(
+				syncErrs,
+				fmt.Errorf("convert request %s to DynamoDB item: %w", req.ID, err),
+			)
+			continue
+		}
+
+		dynamoItem.SyncState = "synced"
+
+		if err := store.PutSyncedRequest(ctx, dynamoItem); err != nil {
+			log.Printf(
+				"Failed to store Clockify request %s in DynamoDB: %v",
+				req.ID,
+				err,
+			)
+
+			syncErrs = append(
+				syncErrs,
+				fmt.Errorf("store request %s in DynamoDB: %w", req.ID, err),
+			)
+			continue
+		}
+
+		log.Printf(
+			"Successfully stored Clockify request %s in DynamoDB",
+			req.ID,
+		)
 	}
 
 	if err := errors.Join(syncErrs...); err != nil {
