@@ -12,25 +12,26 @@ import (
 	"google.golang.org/api/option"
 )
 
-func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, calendarIDs []string) error {
+func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, calendarIDs []string) ([]GoogleCalendarEvent, error) {
+	var syncedEvents []GoogleCalendarEvent
 	var errs []error
 
 	// Load user's local timezone
 	loc, err := time.LoadLocation(r.UserTimeZone)
 	if err != nil {
 		log.Printf("skip %s: unknown tz %q: %v", r.ID, r.UserTimeZone, err)
-		return fmt.Errorf("req=%s user=%s: unknown tz %q: %w", r.ID, r.UserEmail, r.UserTimeZone, err)
+		return nil, fmt.Errorf("req=%s user=%s: unknown tz %q: %w", r.ID, r.UserEmail, r.UserTimeZone, err)
 	}
 
 	startUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.Start)
 	if err != nil {
 		log.Printf("skip %s: bad period.start: %v", r.ID, err)
-		return fmt.Errorf("req=%s user=%s: bad period.start: %w", r.ID, r.UserEmail, err)
+		return nil, fmt.Errorf("req=%s user=%s: bad period.start: %w", r.ID, r.UserEmail, err)
 	}
 	endUTC, err := ParseTimeAny(r.TimeOffPeriod.Period.End)
 	if err != nil {
 		log.Printf("skip %s: bad period.end: %v", r.ID, err)
-		return fmt.Errorf("req=%s user=%s: bad period.end: %w", r.ID, r.UserEmail, err)
+		return nil, fmt.Errorf("req=%s user=%s: bad period.end: %w", r.ID, r.UserEmail, err)
 	}
 
 	// Normalize to local dates
@@ -57,7 +58,7 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		log.Printf("user %s: calendar service error: %v", r.UserEmail, err)
-		return fmt.Errorf("req=%s user=%s: calendar service error: %w", r.ID, r.UserEmail, err)
+		return nil, fmt.Errorf("req=%s user=%s: calendar service error: %w", r.ID, r.UserEmail, err)
 	}
 
 	summary := "[TEST] OOO"
@@ -92,6 +93,13 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 		}
 
 		if len(existing) > 0 {
+			event := existing[0]
+
+			syncedEvents = append(syncedEvents, GoogleCalendarEvent{
+				CalendarID: calID,
+				EventID:    event.Id,
+			})
+
 			for _, e := range existing {
 				log.Printf(
 					"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)",
@@ -107,7 +115,7 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 		}
 
 		// No existing event
-		_, err = srv.Events.Insert(calID, ev).Do()
+		insertedEvent, err := srv.Events.Insert(calID, ev).Do()
 		if err != nil {
 			log.Printf("insert %s (user=%s cal=%s) failed: %v",
 				r.ID, r.UserEmail, calID, err)
@@ -115,11 +123,16 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 			continue
 		}
 
+		syncedEvents = append(syncedEvents, GoogleCalendarEvent{
+			CalendarID: calID,
+			EventID:    insertedEvent.Id,
+		})
+
 		log.Printf(
 			"Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
 			r.ID, r.UserEmail, calID, startDate, endDate,
 		)
 	}
 
-	return errors.Join(errs...)
+	return syncedEvents, errors.Join(errs...)
 }

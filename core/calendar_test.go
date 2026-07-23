@@ -21,7 +21,7 @@ func TestInsertOOOEvent_ReturnsErrorsForInvalidRequests(t *testing.T) {
 
 	for _, req := range reqs {
 		t.Run(req.ID, func(t *testing.T) {
-			err := InsertOOOEvent(ctx, jwtCfg, req, calendarIDs)
+			_, err := InsertOOOEvent(ctx, jwtCfg, req, calendarIDs)
 
 			require.Error(t, err)
 		})
