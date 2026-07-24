@@ -246,7 +246,7 @@ func (e *Event) Run(ctx context.Context) {
 		}
 
 		dynamoItem.SyncState = "synced"
-    dynamoItem.GoogleCalendarEvents = calendarEvents
+		dynamoItem.GoogleCalendarEvents = calendarEvents
 
 		if err := store.PutSyncedRequest(ctx, dynamoItem); err != nil {
 			log.Printf(

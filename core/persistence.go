@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 )
+
 type GoogleCalendarEvent struct {
 	CalendarID string `json:"calendarId" dynamodbav:"CalendarId"`
 	EventID    string `json:"eventId" dynamodbav:"EventId"`
