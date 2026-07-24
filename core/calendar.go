@@ -93,14 +93,12 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 		}
 
 		if len(existing) > 0 {
-			event := existing[0]
-
-			syncedEvents = append(syncedEvents, GoogleCalendarEvent{
-				CalendarID: calID,
-				EventID:    event.Id,
-			})
-
 			for _, e := range existing {
+				syncedEvents = append(syncedEvents, GoogleCalendarEvent{
+					CalendarID: calID,
+					EventID:    e.Id,
+				})
+
 				log.Printf(
 					"FOUND existing OOO event for req=%s user=%s cal=%s eventId=%s (%s → %s)",
 					r.ID,
@@ -111,6 +109,7 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 					e.End.Date,
 				)
 			}
+
 			continue
 		}
 
