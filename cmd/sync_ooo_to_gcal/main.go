@@ -203,12 +203,13 @@ func (e *Event) Run(ctx context.Context) {
 	var syncErrs []error
 
 	for _, req := range requestsToSync {
-		if err := core.InsertOOOEvent(
+		calendarEvents, err := core.InsertOOOEvent(
 			ctx,
 			jwtCfg,
 			req,
 			calendarIDs,
-		); err != nil {
+		)
+		if err != nil {
 			log.Printf(
 				"Failed to sync Clockify request %s: %v",
 				req.ID,
@@ -219,6 +220,7 @@ func (e *Event) Run(ctx context.Context) {
 				syncErrs,
 				fmt.Errorf("sync request %s: %w", req.ID, err),
 			)
+
 			continue
 		}
 
@@ -244,6 +246,7 @@ func (e *Event) Run(ctx context.Context) {
 		}
 
 		dynamoItem.SyncState = "synced"
+		dynamoItem.GoogleCalendarEvents = calendarEvents
 
 		if err := store.PutSyncedRequest(ctx, dynamoItem); err != nil {
 			log.Printf(

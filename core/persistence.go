@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+type GoogleCalendarEvent struct {
+	CalendarID string `json:"calendarId" dynamodbav:"CalendarId"`
+	EventID    string `json:"eventId" dynamodbav:"EventId"`
+}
+
 type SyncedClockifyRequest struct {
 	ClockifyRequestID string `json:"clockifyRequestId" dynamodbav:"ClockifyRequestId"`
 	UserID            string `json:"userId" dynamodbav:"UserId"`
@@ -18,7 +23,7 @@ type SyncedClockifyRequest struct {
 	LastSeenAt string `json:"lastSeenAt" dynamodbav:"LastSeenAt"`
 	SyncState  string `json:"syncState" dynamodbav:"SyncState"`
 
-	GoogleCalendarEventID string `json:"googleCalendarEventId,omitempty" dynamodbav:"GoogleCalendarEventId,omitempty"`
+	GoogleCalendarEvents []GoogleCalendarEvent `json:"googleCalendarEvents,omitempty" dynamodbav:"GoogleCalendarEvents,omitempty"`
 }
 
 // ToDynamoItem converts a Clockify request into the persistence model
