@@ -135,3 +135,45 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 
 	return syncedEvents, errors.Join(errs...)
 }
+
+func DeleteOOOEvents(
+	ctx context.Context,
+	jwtCfg *jwt.Config,
+	events []GoogleCalendarEvent,
+) error {
+	cfg := *jwtCfg
+	client := cfg.Client(ctx)
+	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
+
+	if err != nil {
+		return fmt.Errorf("create calendar service: %w", err)
+	}
+
+	var errs []error
+
+	for _, event := range events {
+		err := srv.Events.
+			Delete(event.CalendarID, event.EventID).
+			Do()
+		if err != nil {
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"delete calendar event %s from calendar %s: %w",
+					event.EventID,
+					event.CalendarID,
+					err,
+				),
+			)
+			continue
+		}
+
+		log.Printf(
+			"DELETED OOO event cal=%s eventId=%s",
+			event.CalendarID,
+			event.EventID,
+		)
+	}
+
+	return errors.Join(errs...)
+}
