@@ -138,10 +138,10 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 
 func DeleteOOOEvents(
 	ctx context.Context,
-	jwtCfg *jwt.Config,
+	jwtCfg jwt.Config,
 	events []GoogleCalendarEvent,
 ) error {
-	cfg := *jwtCfg
+	cfg := jwtCfg
 	client := cfg.Client(ctx)
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 
