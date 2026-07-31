@@ -151,7 +151,7 @@ func (e *Event) Run(ctx context.Context) {
 		return
 	}
 
-	env, err := core.FilterByCreatedAt(respBytes, createdStartT, createdEndT)
+	env, err := core.FilterByActivity(respBytes, createdStartT, createdEndT)
 	if err != nil {
 		core.Die("filter: %v", err)
 	}
