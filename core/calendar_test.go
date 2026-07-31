@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2/jwt"
 )
 
@@ -31,7 +31,7 @@ func TestInsertOOOEvent_ReturnsErrorsForInvalidRequests(t *testing.T) {
 
 func TestDeleteOOOEvents_ReturnsErrorsForFailedDeletes(t *testing.T) {
 	ctx := context.Background()
-	jwtCfg := &jwt.Config{}
+	jwtCfg := jwt.Config{}
 
 	events := []GoogleCalendarEvent{
 		{
