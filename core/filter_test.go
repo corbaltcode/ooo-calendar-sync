@@ -127,8 +127,8 @@ func TestFilterRawRequestsByActivity(t *testing.T) {
 
 	wantIDs := []string{
 		"created-at-start",
-		"created-within-range",
 		"status-at-start",
+		"created-within-range",
 		"status-within-range",
 	}
 
