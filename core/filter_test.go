@@ -135,6 +135,33 @@ func TestFilterRawRequestsByActivity(t *testing.T) {
 	assert.Equal(t, wantIDs, gotIDs)
 }
 
+func TestFilterRawRequestsByActivity_AllowsNullStatusChangedAt(t *testing.T) {
+	rangeStart := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
+	rangeEnd := time.Date(2025, 12, 3, 0, 0, 0, 0, time.UTC)
+
+	rawRequest := json.RawMessage(`{
+		"id": "status-null-created-in-range",
+		"createdAt": "2025-12-02T12:00:00Z",
+		"status": {
+			"changedAt": null,
+			"statusType": "APPROVED"
+		}
+	}`)
+
+	got := FilterRawRequestsByActivity(
+		[]json.RawMessage{rawRequest},
+		rangeStart,
+		rangeEnd,
+	)
+
+	require.Len(t, got, 1)
+
+	var request ClockifyRequest
+	require.NoError(t, json.Unmarshal(got[0], &request))
+
+	assert.Equal(t, "status-null-created-in-range", request.ID)
+}
+
 func TestParseClockifyRequests(t *testing.T) {
 	timeoffStart := "2025-12-10T00:00:00Z"
 	timeoffEnd := "2025-12-10T23:59:59Z"
