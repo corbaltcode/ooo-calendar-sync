@@ -30,6 +30,7 @@ type ClockifyRequest struct {
 
 	Status struct {
 		StatusType string `json:"statusType"`
+		ChangedAt  string `json:"changedAt"`
 	} `json:"status"`
 }
 

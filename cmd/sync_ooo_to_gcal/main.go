@@ -151,7 +151,9 @@ func (e *Event) Run(ctx context.Context) {
 		return
 	}
 
-	env, err := core.FilterByCreatedAt(respBytes, createdStartT, createdEndT)
+	// TODO: Revisit the naming of the time window variables now that filtering
+	// includes both request creation and status changes.
+	env, err := core.FilterByActivity(respBytes, createdStartT, createdEndT)
 	if err != nil {
 		core.Die("filter: %v", err)
 	}

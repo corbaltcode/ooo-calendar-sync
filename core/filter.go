@@ -11,8 +11,11 @@ type rawClockifyEnvelope struct {
 	Requests []json.RawMessage `json:"requests"`
 }
 
-type createdOnly struct {
+type requestTimestamps struct {
 	CreatedAt string `json:"createdAt"`
+	Status    struct {
+		ChangedAt string `json:"changedAt"`
+	} `json:"status"`
 }
 
 func ParseRawClockifyEnvelope(respBytes []byte) (rawClockifyEnvelope, error) {
@@ -21,38 +24,6 @@ func ParseRawClockifyEnvelope(respBytes []byte) (rawClockifyEnvelope, error) {
 		return rawClockifyEnvelope{}, err
 	}
 	return env, nil
-}
-
-// Filters raw request payloads by createdAt in [start, end].
-func FilterRawRequestsByCreatedAt(
-	rawRequests []json.RawMessage,
-	start, end time.Time,
-) []json.RawMessage {
-
-	filtered := make([]json.RawMessage, 0, len(rawRequests))
-
-	for _, raw := range rawRequests {
-		var c createdOnly
-		if err := json.Unmarshal(raw, &c); err != nil {
-			continue // skip if no createdAt
-		}
-
-		ct, err := ParseFlexibleRFC3339(c.CreatedAt)
-		if err != nil {
-			continue
-		}
-		ct = ct.UTC()
-
-		if ct.Before(start) {
-			continue
-		}
-		if !ct.Before(end) { // exclusive
-			continue
-		}
-
-		filtered = append(filtered, raw)
-	}
-	return filtered
 }
 
 // ParseClockifyRequests converts valid raw request payloads into ClockifyRequest structs and skips malformed JSON entries, logging each unmarshal error via log.Printf.
@@ -72,16 +43,57 @@ func ParseClockifyRequests(rawRequests []json.RawMessage) []ClockifyRequest {
 	return requests
 }
 
-// Filter a raw Clockify response for out-of-office requests that were created within the given time span.
-func FilterByCreatedAt(respBytes []byte, createdStart, createdEnd time.Time) (ClockifyEnvelope, error) {
+func isTimestampInWindow(
+	value string,
+	start, end time.Time,
+) bool {
+	timestamp, err := ParseFlexibleRFC3339(value)
+	if err != nil {
+		return false
+	}
+
+	timestamp = timestamp.UTC()
+
+	return !timestamp.Before(start) && timestamp.Before(end)
+}
+
+// Filters raw requests that were created or had their status updated in [start, end).
+func FilterRawRequestsByActivity(
+	rawRequests []json.RawMessage,
+	start, end time.Time,
+) []json.RawMessage {
+	filtered := make([]json.RawMessage, 0, len(rawRequests))
+
+	for _, raw := range rawRequests {
+		var timestamps requestTimestamps
+		if err := json.Unmarshal(raw, &timestamps); err != nil {
+			continue
+		}
+
+		createdInWindow := isTimestampInWindow(timestamps.CreatedAt, start, end)
+
+		statusUpdatedInWindow := isTimestampInWindow(timestamps.Status.ChangedAt, start, end)
+
+		if createdInWindow || statusUpdatedInWindow {
+			filtered = append(filtered, raw)
+		}
+	}
+
+	return filtered
+}
+
+// FilterByActivity returns Clockify requests that were created or had their
+// status updated within the given time span.
+func FilterByActivity(
+	respBytes []byte,
+	start, end time.Time,
+) (ClockifyEnvelope, error) {
 	rawEnv, err := ParseRawClockifyEnvelope(respBytes)
 	if err != nil {
 		return ClockifyEnvelope{}, err
 	}
 
-	filtered := FilterRawRequestsByCreatedAt(rawEnv.Requests, createdStart, createdEnd)
+	filtered := FilterRawRequestsByActivity(rawEnv.Requests, start, end)
 
-	return ClockifyEnvelope{
-		Requests: ParseClockifyRequests(filtered),
-	}, nil
+	return ClockifyEnvelope{Requests: ParseClockifyRequests(filtered)}, nil
 }

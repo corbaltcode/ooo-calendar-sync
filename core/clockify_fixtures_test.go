@@ -3,16 +3,17 @@ package core
 import "time"
 
 func makeRequest(id, tz, start, end string) ClockifyRequest {
-	return makeRequestWithCreatedAt(
+	return makeRequestWithActivityTimestamps(
 		id,
 		tz,
 		start,
 		end,
 		time.Date(2025, 12, 1, 12, 0, 0, 0, time.UTC),
+		time.Date(2025, 12, 1, 12, 0, 0, 0, time.UTC),
 	)
 }
 
-func makeRequestWithCreatedAt(id, tz, start, end string, createdAt time.Time) ClockifyRequest {
+func makeRequestWithActivityTimestamps(id, tz, start, end string, createdAt time.Time, statusChangedAt time.Time) ClockifyRequest {
 	var r ClockifyRequest
 
 	r.ID = id
@@ -23,6 +24,7 @@ func makeRequestWithCreatedAt(id, tz, start, end string, createdAt time.Time) Cl
 
 	r.TimeOffPeriod.Period.Start = start
 	r.TimeOffPeriod.Period.End = end
+	r.Status.ChangedAt = statusChangedAt.Format(time.RFC3339)
 
 	return r
 }
