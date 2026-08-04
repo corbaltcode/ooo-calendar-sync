@@ -169,7 +169,7 @@ func (e *Event) Run(ctx context.Context) {
 	)
 
 	// TODO: Move request filtering into the core package once the persistence layer is fully implemented.
-	var requestsToSync []core.ClockifyRequest
+	var requestsToProcess []core.ClockifyRequest
 
 	for _, req := range env.Requests {
 		existing, err := store.GetSyncedRequest(ctx, req.ID)
@@ -177,16 +177,39 @@ func (e *Event) Run(ctx context.Context) {
 			core.Die("get synced request %s: %v", req.ID, err)
 		}
 
-		if existing != nil {
-			log.Printf("Skipping Clockify request %s because it already exists in DynamoDB", req.ID)
+		currentStatus := req.Status.StatusType
+
+		if existing == nil {
+			log.Printf(
+				"Queueing new Clockify request %s with status %s",
+				req.ID,
+				currentStatus,
+			)
+
+			requestsToProcess = append(requestsToProcess, req)
 			continue
 		}
 
-		log.Printf("Queueing new Clockify request %s for sync", req.ID)
-		requestsToSync = append(requestsToSync, req)
+		if existing.Status != currentStatus {
+			log.Printf(
+				"Queueing Clockify request %s because status changed from %s to %s",
+				req.ID,
+				existing.Status,
+				currentStatus,
+			)
+
+			requestsToProcess = append(requestsToProcess, req)
+			continue
+		}
+
+		log.Printf(
+			"Skipping Clockify request %s because status %s has already been processed",
+			req.ID,
+			currentStatus,
+		)
 	}
 
-	if len(requestsToSync) == 0 {
+	if len(requestsToProcess) == 0 {
 		fmt.Println("No new requests to sync.")
 		return
 	}
@@ -204,7 +227,7 @@ func (e *Event) Run(ctx context.Context) {
 	calendarIDs := []string{"primary"}
 	var syncErrs []error
 
-	for _, req := range requestsToSync {
+	for _, req := range requestsToProcess {
 		calendarEvents, err := core.InsertOOOEvent(
 			ctx,
 			jwtCfg,
