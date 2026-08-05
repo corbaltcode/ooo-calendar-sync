@@ -210,7 +210,7 @@ func (e *Event) Run(ctx context.Context) {
 	}
 
 	if len(requestsToProcess) == 0 {
-		fmt.Println("No new requests to sync.")
+		fmt.Println("No requests queued for processing.")
 		return
 	}
 
