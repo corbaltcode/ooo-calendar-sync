@@ -169,7 +169,7 @@ func (e *Event) Run(ctx context.Context) {
 	)
 
 	// TODO: Move request filtering into the core package once the persistence layer is fully implemented.
-	var requestsToProcess []core.ClockifyRequest
+	var requestsToProcess []core.RequestToProcess
 
 	for _, req := range env.Requests {
 		existing, err := store.GetSyncedRequest(ctx, req.ID)
@@ -186,7 +186,9 @@ func (e *Event) Run(ctx context.Context) {
 				currentStatus,
 			)
 
-			requestsToProcess = append(requestsToProcess, req)
+			requestsToProcess = append(requestsToProcess, core.RequestToProcess{
+				Request: req,
+			})
 			continue
 		}
 
@@ -198,7 +200,10 @@ func (e *Event) Run(ctx context.Context) {
 				currentStatus,
 			)
 
-			requestsToProcess = append(requestsToProcess, req)
+			requestsToProcess = append(requestsToProcess, core.RequestToProcess{
+				Request:        req,
+				ExistingRecord: existing,
+			})
 			continue
 		}
 
@@ -228,44 +233,44 @@ func (e *Event) Run(ctx context.Context) {
 	var syncErrs []error
 
 	for _, req := range requestsToProcess {
-		calendarEvents, err := core.InsertOOOEvent(
+		calendarEvents, err := core.SyncOOORequest(
 			ctx,
-			jwtCfg,
+			*jwtCfg,
 			req,
 			calendarIDs,
 		)
 		if err != nil {
 			log.Printf(
 				"Failed to sync Clockify request %s: %v",
-				req.ID,
+				req.Request.ID,
 				err,
 			)
 
 			syncErrs = append(
 				syncErrs,
-				fmt.Errorf("sync request %s: %w", req.ID, err),
+				fmt.Errorf("sync request %s: %w", req.Request.ID, err),
 			)
 
 			continue
 		}
 
 		log.Printf(
-			"Successfully added Clockify request %s to Google Calendar",
-			req.ID,
+			"Successfully synced Clockify request %s to Google Calendar",
+			req.Request.ID,
 		)
 
-		dynamoItem, err := req.ToDynamoItem()
+		dynamoItem, err := req.Request.ToDynamoItem()
 
 		if err != nil {
 			log.Printf(
 				"Failed to convert Clockify request %s to a DynamoDB item: %v",
-				req.ID,
+				req.Request.ID,
 				err,
 			)
 
 			syncErrs = append(
 				syncErrs,
-				fmt.Errorf("convert request %s to DynamoDB item: %w", req.ID, err),
+				fmt.Errorf("convert request %s to DynamoDB item: %w", req.Request.ID, err),
 			)
 			continue
 		}
@@ -276,20 +281,20 @@ func (e *Event) Run(ctx context.Context) {
 		if err := store.PutSyncedRequest(ctx, dynamoItem); err != nil {
 			log.Printf(
 				"Failed to store Clockify request %s in DynamoDB: %v",
-				req.ID,
+				req.Request.ID,
 				err,
 			)
 
 			syncErrs = append(
 				syncErrs,
-				fmt.Errorf("store request %s in DynamoDB: %w", req.ID, err),
+				fmt.Errorf("store request %s in DynamoDB: %w", req.Request.ID, err),
 			)
 			continue
 		}
 
 		log.Printf(
 			"Successfully stored Clockify request %s in DynamoDB",
-			req.ID,
+			req.Request.ID,
 		)
 	}
 
