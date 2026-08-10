@@ -12,7 +12,12 @@ import (
 	"google.golang.org/api/option"
 )
 
-func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, calendarIDs []string) ([]GoogleCalendarEvent, error) {
+type RequestToProcess struct {
+	Request        ClockifyRequest
+	ExistingRecord *SyncedClockifyRequest
+}
+
+func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, calendarIDs []string) ([]GoogleCalendarEvent, error) {
 	var syncedEvents []GoogleCalendarEvent
 	var errs []error
 
@@ -51,7 +56,7 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 	startDate := allDayStart.Format("2006-01-02")
 	endDate := allDayEndExclusive.Format("2006-01-02")
 
-	cfg := *jwtCfg
+	cfg := jwtCfg
 	cfg.Subject = r.UserEmail
 	client := cfg.Client(ctx)
 
@@ -139,9 +144,11 @@ func InsertOOOEvent(ctx context.Context, jwtCfg *jwt.Config, r ClockifyRequest, 
 func DeleteOOOEvents(
 	ctx context.Context,
 	jwtCfg jwt.Config,
+	userEmail string,
 	events []GoogleCalendarEvent,
 ) error {
 	cfg := jwtCfg
+	cfg.Subject = userEmail
 	client := cfg.Client(ctx)
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 
@@ -176,4 +183,47 @@ func DeleteOOOEvents(
 	}
 
 	return errors.Join(errs...)
+}
+
+func SyncOOORequest(
+	ctx context.Context,
+	jwtCfg jwt.Config,
+	req RequestToProcess,
+	calendarIDs []string,
+) ([]GoogleCalendarEvent, error) {
+	switch req.Request.Status.StatusType {
+	case "APPROVED":
+		return InsertOOOEvents(
+			ctx,
+			jwtCfg,
+			req.Request,
+			calendarIDs,
+		)
+
+	case "REJECTED":
+		if req.ExistingRecord == nil {
+			return nil, fmt.Errorf(
+				"cannot reject Clockify request %s: no existing synced record",
+				req.Request.ID,
+			)
+		}
+
+		err := DeleteOOOEvents(
+			ctx,
+			jwtCfg,
+			req.Request.UserEmail,
+			req.ExistingRecord.GoogleCalendarEvents,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+
+	default:
+		return nil, fmt.Errorf(
+			"unsupported Clockify request status %q",
+			req.Request.Status.StatusType,
+		)
+	}
 }
