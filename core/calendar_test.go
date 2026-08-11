@@ -11,7 +11,7 @@ import (
 
 func TestInsertOOOEvent_ReturnsErrorsForInvalidRequests(t *testing.T) {
 	ctx := context.Background()
-	jwtCfg := &jwt.Config{}
+	jwtCfg := jwt.Config{}
 	calendarIDs := []string{"primary"}
 
 	reqs := []ClockifyRequest{
@@ -22,7 +22,7 @@ func TestInsertOOOEvent_ReturnsErrorsForInvalidRequests(t *testing.T) {
 
 	for _, req := range reqs {
 		t.Run(req.ID, func(t *testing.T) {
-			_, err := InsertOOOEvent(ctx, jwtCfg, req, calendarIDs)
+			_, err := InsertOOOEvents(ctx, jwtCfg, req, calendarIDs)
 
 			require.Error(t, err)
 		})
@@ -32,6 +32,7 @@ func TestInsertOOOEvent_ReturnsErrorsForInvalidRequests(t *testing.T) {
 func TestDeleteOOOEvents_ReturnsErrorsForFailedDeletes(t *testing.T) {
 	ctx := context.Background()
 	jwtCfg := jwt.Config{}
+	userEmail := "test@email.com"
 
 	events := []GoogleCalendarEvent{
 		{
@@ -44,7 +45,7 @@ func TestDeleteOOOEvents_ReturnsErrorsForFailedDeletes(t *testing.T) {
 		},
 	}
 
-	err := DeleteOOOEvents(ctx, jwtCfg, events)
+	err := DeleteOOOEvents(ctx, jwtCfg, userEmail, events)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "event-1")
