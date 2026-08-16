@@ -31,7 +31,7 @@ func TestToDynamoItem(t *testing.T) {
 
 	assert.Equal(t, "request-123", item.ClockifyRequestID)
 	assert.Equal(t, "person@example.com", item.UserEmail)
-	assert.Equal(t, "APPROVED", item.Status)
+	assert.Equal(t, ClockifyStatusApproved, item.Status)
 	assert.Equal(t, "2026-06-10T00:00:00Z", item.PeriodStart)
 	assert.Equal(t, "2026-06-12T00:00:00Z", item.PeriodEnd)
 	assert.Equal(t, "2026-06-08T10:00:00Z", item.CreatedAt)

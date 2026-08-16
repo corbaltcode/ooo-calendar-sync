@@ -34,6 +34,11 @@ type ClockifyRequest struct {
 	} `json:"status"`
 }
 
+const (
+	ClockifyStatusApproved = "APPROVED"
+	ClockifyStatusRejected = "REJECTED"
+)
+
 type ClockifyRequestPayload struct {
 	Start    *string  `json:"start,omitempty"`
 	End      *string  `json:"end,omitempty"`

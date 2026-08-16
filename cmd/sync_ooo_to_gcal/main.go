@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -22,13 +21,12 @@ import (
 )
 
 type Event struct {
-	PeriodStart  string   `json:"start"`
-	PeriodEnd    string   `json:"end"`
-	CreatedStart string   `json:"createdStart"`
-	CreatedEnd   string   `json:"createdEnd"`
-	Statuses     []string `json:"statuses"`
-	FilterBy     string   `json:"by"`
-	PageSize     int      `json:"pageSize"`
+	PeriodStart  string `json:"start"`
+	PeriodEnd    string `json:"end"`
+	CreatedStart string `json:"createdStart"`
+	CreatedEnd   string `json:"createdEnd"`
+	FilterBy     string `json:"by"`
+	PageSize     int    `json:"pageSize"`
 }
 
 func (e *Event) Run(ctx context.Context) {
@@ -79,30 +77,15 @@ func (e *Event) Run(ctx context.Context) {
 		endPtr = &ts
 	}
 
-	validStatuses := map[string]bool{
-		"PENDING":  true,
-		"APPROVED": true,
-		"REJECTED": true,
-		"ALL":      true,
-	}
-
-	if len(e.Statuses) == 0 {
-		core.Die("missing or empty statuses list")
-	}
-
-	for _, s := range e.Statuses {
-		s = strings.ToUpper(strings.TrimSpace(s))
-		if !validStatuses[s] {
-			core.Die("invalid statuses value: %q (must be one of PENDING, APPROVED, REJECTED, ALL)", s)
-		}
-	}
-
 	payload := core.ClockifyRequestPayload{
 		Start:    startPtr,
 		End:      endPtr,
 		Page:     1,
 		PageSize: e.PageSize,
-		Statuses: e.Statuses,
+		Statuses: []string{
+			core.ClockifyStatusApproved,
+			core.ClockifyStatusRejected,
+		},
 	}
 
 	// Development safety: force a single user via env var, if set.
@@ -328,20 +311,15 @@ func main() {
 	var (
 		periodStartStr  = flag.String("start", "", "Period start (RFC3339)")
 		periodEndStr    = flag.String("end", "", "Period end (RFC3339)")
-		statusesStr     = flag.String("statuses", "APPROVED", "Comma-separated statuses")
 		filterBy        = flag.String("by", "created", "Filter mode: period|created")
 		createdStartStr = flag.String("createdStart", "", "Created >= (RFC3339)")
 		createdEndStr   = flag.String("createdEnd", "", "Created <  (RFC3339)")
 		pageSize        = flag.Int("pageSize", 50, "Page size (1–200)")
 	)
+
 	flag.Parse()
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("Warning: no .env file found, relying on environment vars")
-	}
-
-	var statuses []string
-	for _, s := range strings.Split(*statusesStr, ",") {
-		statuses = append(statuses, strings.ToUpper(strings.TrimSpace(s)))
 	}
 
 	ev := Event{
@@ -349,7 +327,6 @@ func main() {
 		PeriodEnd:    *periodEndStr,
 		CreatedStart: *createdStartStr,
 		CreatedEnd:   *createdEndStr,
-		Statuses:     statuses,
 		FilterBy:     *filterBy,
 		PageSize:     *pageSize,
 	}
