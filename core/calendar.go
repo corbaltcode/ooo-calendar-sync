@@ -192,7 +192,7 @@ func SyncOOORequest(
 	calendarIDs []string,
 ) ([]GoogleCalendarEvent, error) {
 	switch req.Request.Status.StatusType {
-	case "APPROVED":
+	case ClockifyStatusApproved:
 		return InsertOOOEvents(
 			ctx,
 			jwtCfg,
@@ -200,7 +200,7 @@ func SyncOOORequest(
 			calendarIDs,
 		)
 
-	case "REJECTED":
+	case ClockifyStatusRejected:
 		if req.ExistingRecord == nil {
 			return nil, fmt.Errorf(
 				"cannot reject Clockify request %s: no existing synced record",
