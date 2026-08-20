@@ -100,7 +100,10 @@ func FetchClockifyRequests(c *ClockifyClient, workspaceID string, payload Clocki
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}
-	defer resp.Body.Close()
+
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
