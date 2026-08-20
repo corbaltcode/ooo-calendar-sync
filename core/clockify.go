@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -102,7 +103,9 @@ func FetchClockifyRequests(c *ClockifyClient, workspaceID string, payload Clocki
 	}
 
 	defer func() {
-		_ = resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body: %v", err)
+		}
 	}()
 
 	respBytes, err := io.ReadAll(resp.Body)
