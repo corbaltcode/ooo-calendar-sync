@@ -39,22 +39,43 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 		return nil, fmt.Errorf("req=%s user=%s: bad period.end: %w", r.ID, r.UserEmail, err)
 	}
 
-	// Normalize to local dates
-	startLocal := startUTC.In(loc)
-	endLocal := endUTC.In(loc)
+	var eventStart, eventEnd time.Time
 
-	y1, m1, d1 := startLocal.Date()
-	y2, m2, d2 := endLocal.Date()
+	if r.TimeOffPeriod.HalfDay {
+		eventStart, eventEnd, err = handleHalfDay(
+			r.TimeOffPeriod.HalfDayHours,
+			loc,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"req=%s user=%s: %w",
+				r.ID,
+				r.UserEmail,
+				err,
+			)
+		}
+	} else {
+		eventStart, eventEnd = handleAllDay(startUTC, endUTC, loc)
+	}
 
-	// All-day local time window used for Events.List (TimeMin / TimeMax).
-	allDayStart := time.Date(y1, m1, d1, 0, 0, 0, 0, loc)
-	// Clockify is inclusive; GCal all-day is [start, end) exclusive.
-	// So cover the last OOO day by adding +1 local day to the end date.
-	allDayEndExclusive := time.Date(y2, m2, d2, 0, 0, 0, 0, loc).AddDate(0, 0, 1)
+	var calendarStart, calendarEnd *calendar.EventDateTime
 
-	// YYYY-MM-DD string format is used for the Insert event payload.
-	startDate := allDayStart.Format("2006-01-02")
-	endDate := allDayEndExclusive.Format("2006-01-02")
+	if r.TimeOffPeriod.HalfDay {
+		calendarStart = &calendar.EventDateTime{
+			DateTime: eventStart.Format(time.RFC3339),
+		}
+		calendarEnd = &calendar.EventDateTime{
+			DateTime: eventEnd.Format(time.RFC3339),
+		}
+	} else {
+		// YYYY-MM-DD string format is used for the Insert event payload.
+		calendarStart = &calendar.EventDateTime{
+			Date: eventStart.Format("2006-01-02"),
+		}
+		calendarEnd = &calendar.EventDateTime{
+			Date: eventEnd.Format("2006-01-02"),
+		}
+	}
 
 	cfg := jwtCfg
 	cfg.Subject = r.UserEmail
@@ -73,10 +94,9 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 	ev := &calendar.Event{
 		Summary:     summary,
 		Description: fmt.Sprintf("Clockify request: %s\nCreatedAt: %s", r.ID, r.CreatedAt),
-		Start:       &calendar.EventDateTime{Date: startDate},
-		End:         &calendar.EventDateTime{Date: endDate}, // exclusive
+		Start:       calendarStart,
+		End:         calendarEnd,
 		// Attaching the Clockify request ID as a private extended property.
-		// TODO: Before inserting, check for an existing event with this key and insert event/skip:
 		ExtendedProperties: &calendar.EventExtendedProperties{
 			Private: map[string]string{
 				"clockifyRequestId": r.ID,
@@ -87,8 +107,8 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 	// Insert into calendars
 	for _, calID := range calendarIDs {
 		existing, err := findClockifyEvents(
-			ctx, srv, calID, r.ID,
-			allDayStart, allDayEndExclusive,
+			srv, calID, r.ID,
+			eventStart, eventEnd,
 		)
 		if err != nil {
 			log.Printf("lookup %s (user=%s cal=%s) failed: %v",
@@ -110,8 +130,8 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 					r.UserEmail,
 					calID,
 					e.Id,
-					e.Start.Date,
-					e.End.Date,
+					calendarEventTimeValue(e.Start),
+					calendarEventTimeValue(e.End),
 				)
 			}
 
@@ -134,7 +154,7 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 
 		log.Printf(
 			"Inserted OOO for req=%s user=%s cal=%s (%s → %s)\n",
-			r.ID, r.UserEmail, calID, startDate, endDate,
+			r.ID, r.UserEmail, calID, calendarEventTimeValue(calendarStart), calendarEventTimeValue(calendarEnd),
 		)
 	}
 

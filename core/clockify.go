@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+type ClockifyHalfDayPeriod string
+
+const (
+	HalfDayPeriodNotDefined ClockifyHalfDayPeriod = "NOT_DEFINED"
+	HalfDayPeriodFirstHalf  ClockifyHalfDayPeriod = "FIRST_HALF"
+	HalfDayPeriodSecondHalf ClockifyHalfDayPeriod = "SECOND_HALF"
+)
+
+const (
+	ClockifyStatusApproved = "APPROVED"
+	ClockifyStatusRejected = "REJECTED"
+)
+
 type ClockifyEnvelope struct {
 	Requests []ClockifyRequest `json:"requests"`
 }
@@ -23,10 +36,10 @@ type ClockifyRequest struct {
 	UserTimeZone string `json:"userTimeZone"`
 
 	TimeOffPeriod struct {
-		Period struct {
-			Start string `json:"start"`
-			End   string `json:"end"`
-		} `json:"period"`
+		HalfDay       bool                `json:"halfDay"`
+		HalfDayHours  *ClockifyTimePeriod `json:"halfDayHours"`
+		HalfDayPeriod string              `json:"halfDayPeriod"`
+		Period        ClockifyTimePeriod  `json:"period"`
 	} `json:"timeOffPeriod"`
 
 	Status struct {
@@ -35,10 +48,10 @@ type ClockifyRequest struct {
 	} `json:"status"`
 }
 
-const (
-	ClockifyStatusApproved = "APPROVED"
-	ClockifyStatusRejected = "REJECTED"
-)
+type ClockifyTimePeriod struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
 
 type ClockifyRequestPayload struct {
 	Start    *string  `json:"start,omitempty"`
