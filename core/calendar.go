@@ -60,6 +60,8 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 
 	var calendarStart, calendarEnd *calendar.EventDateTime
 
+	// Google Calendar uses RFC3339 DateTime values for timed events
+	// and YYYY-MM-DD Date values for all-day events.
 	if r.TimeOffPeriod.HalfDay {
 		calendarStart = &calendar.EventDateTime{
 			DateTime: eventStart.Format(time.RFC3339),
@@ -68,7 +70,6 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 			DateTime: eventEnd.Format(time.RFC3339),
 		}
 	} else {
-		// YYYY-MM-DD string format is used for the Insert event payload.
 		calendarStart = &calendar.EventDateTime{
 			Date: eventStart.Format("2006-01-02"),
 		}
