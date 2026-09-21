@@ -13,12 +13,6 @@ import (
 type ClockifyHalfDayPeriod string
 
 const (
-	HalfDayPeriodNotDefined ClockifyHalfDayPeriod = "NOT_DEFINED"
-	HalfDayPeriodFirstHalf  ClockifyHalfDayPeriod = "FIRST_HALF"
-	HalfDayPeriodSecondHalf ClockifyHalfDayPeriod = "SECOND_HALF"
-)
-
-const (
 	ClockifyStatusApproved = "APPROVED"
 	ClockifyStatusRejected = "REJECTED"
 )
