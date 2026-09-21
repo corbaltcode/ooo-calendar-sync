@@ -9,8 +9,12 @@ import (
 
 func handleAllDay(startUTC time.Time,
 	endUTC time.Time,
-	loc *time.Location) (time.Time, time.Time) {
+	loc *time.Location) (time.Time, time.Time, error) {
 
+	if loc == nil {
+		return time.Time{}, time.Time{},
+			fmt.Errorf("location is required")
+	}
 	// Normalize to local dates
 	startLocal := startUTC.In(loc)
 	endLocal := endUTC.In(loc)
@@ -24,13 +28,18 @@ func handleAllDay(startUTC time.Time,
 	// So cover the last OOO day by adding +1 local day to the end date.
 	allDayEndExclusive := time.Date(y2, m2, d2, 0, 0, 0, 0, loc).AddDate(0, 0, 1)
 
-	return allDayStart, allDayEndExclusive
+	return allDayStart, allDayEndExclusive, nil
 }
 
 func handleHalfDay(
 	halfDayHours *ClockifyTimePeriod,
 	loc *time.Location,
 ) (time.Time, time.Time, error) {
+	if loc == nil {
+		return time.Time{}, time.Time{},
+			fmt.Errorf("location is required")
+	}
+
 	if halfDayHours == nil {
 		return time.Time{}, time.Time{},
 			fmt.Errorf("half-day request is missing halfDayHours")

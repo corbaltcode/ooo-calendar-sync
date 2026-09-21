@@ -55,7 +55,17 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 			)
 		}
 	} else {
-		eventStart, eventEnd = handleAllDay(startUTC, endUTC, loc)
+		eventStart, eventEnd, err = handleAllDay(startUTC, endUTC, loc)
+
+		if err != nil {
+			return nil, fmt.Errorf(
+				"req=%s user=%s: %w",
+				r.ID,
+				r.UserEmail,
+				err,
+			)
+		}
+
 	}
 
 	var calendarStart, calendarEnd *calendar.EventDateTime

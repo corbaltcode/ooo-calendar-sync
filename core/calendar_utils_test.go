@@ -93,16 +93,29 @@ func TestHandleAllDay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotStart, gotEnd := handleAllDay(
+			gotStart, gotEnd, err := handleAllDay(
 				tt.startUTC,
 				tt.endUTC,
 				loc,
 			)
 
+			require.NoError(t, err)
 			assert.Equal(t, tt.wantStart, gotStart)
 			assert.Equal(t, tt.wantEnd, gotEnd)
 		})
 	}
+
+	t.Run("returns error when location is nil", func(t *testing.T) {
+		gotStart, gotEnd, err := handleAllDay(
+			time.Time{},
+			time.Time{},
+			nil,
+		)
+
+		require.EqualError(t, err, "location is required")
+		assert.True(t, gotStart.IsZero())
+		assert.True(t, gotEnd.IsZero())
+	})
 }
 
 func TestHandleHalfDay(t *testing.T) {
@@ -189,6 +202,18 @@ func TestHandleHalfDay(t *testing.T) {
 			assert.Equal(t, tt.wantEnd, gotEnd)
 		})
 	}
+	t.Run("returns error when location is nil", func(t *testing.T) {
+		hours := &ClockifyTimePeriod{
+			Start: "2026-09-03T13:00:00Z",
+			End:   "2026-09-03T16:30:00Z",
+		}
+
+		gotStart, gotEnd, err := handleHalfDay(hours, nil)
+
+		require.EqualError(t, err, "location is required")
+		assert.True(t, gotStart.IsZero())
+		assert.True(t, gotEnd.IsZero())
+	})
 }
 
 func TestCalendarEventTimeValue(t *testing.T) {
