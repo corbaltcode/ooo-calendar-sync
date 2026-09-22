@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"time"
 
 	"google.golang.org/api/calendar/v3"
@@ -11,7 +10,6 @@ import (
 // property "clockifyRequestId" == clockifyID, scoped to the given time range.
 // It returns an empty slice if no such events exist.
 func findClockifyEvents(
-	ctx context.Context,
 	srv *calendar.Service,
 	calID string,
 	clockifyID string,

@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+type ClockifyHalfDayPeriod string
+
+const (
+	ClockifyStatusApproved = "APPROVED"
+	ClockifyStatusRejected = "REJECTED"
+)
+
 type ClockifyEnvelope struct {
 	Requests []ClockifyRequest `json:"requests"`
 }
@@ -23,10 +30,13 @@ type ClockifyRequest struct {
 	UserTimeZone string `json:"userTimeZone"`
 
 	TimeOffPeriod struct {
-		Period struct {
-			Start string `json:"start"`
-			End   string `json:"end"`
-		} `json:"period"`
+		HalfDay       bool                `json:"halfDay"`
+		HalfDayHours  *ClockifyTimePeriod `json:"halfDayHours"`
+		HalfDayPeriod string              `json:"halfDayPeriod"`
+
+		// Clockify represents the final all-day date inclusively.
+		// Google Calendar uses an exclusive end date for all-day events.
+		Period ClockifyTimePeriod `json:"period"`
 	} `json:"timeOffPeriod"`
 
 	Status struct {
@@ -35,12 +45,15 @@ type ClockifyRequest struct {
 	} `json:"status"`
 }
 
-const (
-	ClockifyStatusApproved = "APPROVED"
-	ClockifyStatusRejected = "REJECTED"
-)
+// ClockifyTimePeriod contains the start and end timestamps for either
+// the overall time-off period or its specific half-day hours.
+type ClockifyTimePeriod struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
 
 type ClockifyRequestPayload struct {
+	// Start and End define the inclusive Clockify query window.
 	Start    *string  `json:"start,omitempty"`
 	End      *string  `json:"end,omitempty"`
 	Page     int      `json:"page,omitempty"`
