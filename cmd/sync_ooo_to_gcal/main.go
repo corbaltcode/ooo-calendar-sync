@@ -134,8 +134,6 @@ func (e *Event) Run(ctx context.Context) {
 		return
 	}
 
-	// TODO: Revisit the naming of the time window variables now that filtering
-	// includes both request creation and status changes.
 	env, err := core.FilterByActivity(respBytes, activityStartT, activityEndT)
 	if err != nil {
 		core.Die("filter: %v", err)
@@ -212,10 +210,13 @@ func (e *Event) Run(ctx context.Context) {
 		core.Die("JWT config: %v", err)
 	}
 
+	// TODO: Replace the hardcoded calendar IDs with a per-user lookup.
 	calendarIDs := []string{"primary"}
 	var syncErrs []error
 
 	for _, req := range requestsToProcess {
+		// TODO: Call core.LookupUserCalendars using req.UserEmail
+		// and pass the returned calendar IDs to SyncOOORequest.
 		calendarEvents, err := core.SyncOOORequest(
 			ctx,
 			*jwtCfg,
