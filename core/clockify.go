@@ -28,6 +28,7 @@ type ClockifyRequest struct {
 
 	UserEmail    string `json:"userEmail"`
 	UserTimeZone string `json:"userTimeZone"`
+	UserName     string `json:"userName"`
 
 	TimeOffPeriod struct {
 		HalfDay       bool                `json:"halfDay"`

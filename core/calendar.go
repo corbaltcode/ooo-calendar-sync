@@ -97,10 +97,14 @@ func InsertOOOEvents(ctx context.Context, jwtCfg jwt.Config, r ClockifyRequest, 
 		return nil, fmt.Errorf("req=%s user=%s: calendar service error: %w", r.ID, r.UserEmail, err)
 	}
 
-	summary := "[TEST] OOO"
-	if r.PolicyName != "" {
-		summary = fmt.Sprintf("[TEST] OOO — %s", r.PolicyName)
+	summary := "OOO"
+	if r.UserName != "" {
+		summary = fmt.Sprintf("%s OOO", r.UserName)
 	}
+	if r.PolicyName != "" {
+		summary = fmt.Sprintf("%s — %s", summary, r.PolicyName)
+	}
+
 	ev := &calendar.Event{
 		Summary:     summary,
 		Description: fmt.Sprintf("Clockify request: %s\nCreatedAt: %s", r.ID, r.CreatedAt),
