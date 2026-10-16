@@ -92,3 +92,35 @@ func (s *DynamoStore) GetSyncedRequest(
 
 	return &item, nil
 }
+
+func (s *DynamoStore) GetUserCalendarMapping(
+	ctx context.Context,
+	userEmail string,
+) (*UserCalendarMapping, error) {
+	if userEmail == "" {
+		return nil, errors.New("missing user email")
+	}
+
+	response, err := s.Client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: &s.TableName,
+		Key: map[string]types.AttributeValue{
+			"UserEmail": &types.AttributeValueMemberS{
+				Value: userEmail,
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Item) == 0 {
+		return nil, nil
+	}
+
+	var item UserCalendarMapping
+	if err := attributevalue.UnmarshalMap(response.Item, &item); err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
