@@ -43,9 +43,14 @@ func (e *Event) Run(ctx context.Context) {
 		core.Die("missing env GOOGLE_SERVICE_ACCOUNT_JSON_B64")
 	}
 
-	tableName := os.Getenv("DYNAMODB_TABLE_NAME")
-	if tableName == "" {
-		core.Die("missing env DYNAMODB_TABLE_NAME")
+	syncedRequestsTableName := os.Getenv("DYNAMODB_SYNCED_REQUESTS_TABLE")
+	if syncedRequestsTableName == "" {
+		core.Die("missing env DYNAMODB_SYNCED_REQUESTS_TABLE")
+	}
+
+	userCalendarTableName := os.Getenv("DYNAMODB_USER_CALENDARS_TABLE")
+	if userCalendarTableName == "" {
+		core.Die("missing env DYNAMODB_USER_CALENDARS_TABLE")
 	}
 
 	if e.PageSize <= 0 {
@@ -146,7 +151,7 @@ func (e *Event) Run(ctx context.Context) {
 
 	store := core.NewDynamoStore(
 		dynamodb.NewFromConfig(awsCfg),
-		tableName,
+		syncedRequestsTableName,
 	)
 
 	// TODO: Move request filtering into the core package once the persistence layer is fully implemented.
@@ -210,13 +215,31 @@ func (e *Event) Run(ctx context.Context) {
 		core.Die("JWT config: %v", err)
 	}
 
-	// TODO: Replace the hardcoded calendar IDs with a per-user lookup.
-	calendarIDs := []string{"primary"}
 	var syncErrs []error
 
+	userCalendarStore := core.NewDynamoStore(
+		dynamodb.NewFromConfig(awsCfg),
+		userCalendarTableName,
+	)
+
 	for _, req := range requestsToProcess {
-		// TODO: Call core.LookupUserCalendars using req.UserEmail
-		// and pass the returned calendar IDs to SyncOOORequest.
+		mapping, err := userCalendarStore.GetUserCalendarMapping(ctx, req.Request.UserEmail)
+
+		if err != nil {
+			core.Die("Calendar lookup failed: %v", err)
+		}
+
+		calendarIDs := []string{"primary"}
+
+		if mapping != nil && len(mapping.CalendarIDs) > 0 {
+			calendarIDs = mapping.CalendarIDs
+		} else {
+			log.Printf(
+				"No calendars configured for %s. Defaulting to primary calendar.",
+				req.Request.UserEmail,
+			)
+		}
+
 		calendarEvents, err := core.SyncOOORequest(
 			ctx,
 			*jwtCfg,
