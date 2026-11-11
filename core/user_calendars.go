@@ -1,6 +1,7 @@
 package core
 
 type UserCalendarMapping struct {
-	UserEmail   string
-	CalendarIDs []string
+	UserEmail      string
+	ClockifyUserID string
+	CalendarIDs    []string
 }

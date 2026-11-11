@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -123,4 +124,31 @@ func (s *DynamoStore) GetUserCalendarMapping(
 	}
 
 	return &item, nil
+}
+
+func (s *DynamoStore) LoadAllUserCalendarMappings(
+	ctx context.Context,
+) (map[string]UserCalendarMapping, error) {
+	paginator := dynamodb.NewScanPaginator(s.Client, &dynamodb.ScanInput{
+		TableName: &s.TableName,
+	})
+
+	mappingsByEmail := make(map[string]UserCalendarMapping)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("scan user calendar mappings: %w", err)
+		}
+
+		var pageMappings []UserCalendarMapping
+		if err := attributevalue.UnmarshalListOfMaps(page.Items, &pageMappings); err != nil {
+			return nil, fmt.Errorf("decode user calendar mappings: %w", err)
+		}
+
+		for _, mapping := range pageMappings {
+			mappingsByEmail[mapping.UserEmail] = mapping
+		}
+	}
+
+	return mappingsByEmail, nil
 }
