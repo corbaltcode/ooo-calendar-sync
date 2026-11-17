@@ -81,6 +81,20 @@ func (e *Event) Run(ctx context.Context) {
 		}
 		endPtr = &ts
 	}
+	awsCfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		core.Die("load AWS config: %v", err)
+	}
+
+	userCalendarStore := core.NewDynamoStore(
+		dynamodb.NewFromConfig(awsCfg),
+		userCalendarTableName,
+	)
+
+	mappingsByEmail, err := userCalendarStore.LoadAllUserCalendarMappings(ctx)
+	if err != nil {
+		core.Die("load user calendar mappings: %v", err)
+	}
 
 	payload := core.ClockifyRequestPayload{
 		Start:    startPtr,
@@ -97,6 +111,8 @@ func (e *Event) Run(ctx context.Context) {
 	if forcedSingleUser := os.Getenv("CLOCKIFY_FORCE_USER_ID"); forcedSingleUser != "" {
 		fmt.Printf("CLOCKIFY_FORCE_USER_ID active: only syncing user %s\n", forcedSingleUser)
 		payload.Users = []string{forcedSingleUser}
+	} else {
+		payload.Users = core.ExtractClockifyUserIDs(mappingsByEmail)
 	}
 
 	if e.FilterBy == "activity" && (payload.Start == nil || payload.End == nil) {
@@ -142,11 +158,6 @@ func (e *Event) Run(ctx context.Context) {
 	env, err := core.FilterByActivity(respBytes, activityStartT, activityEndT)
 	if err != nil {
 		core.Die("filter: %v", err)
-	}
-
-	awsCfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		core.Die("load AWS config: %v", err)
 	}
 
 	store := core.NewDynamoStore(
@@ -216,11 +227,6 @@ func (e *Event) Run(ctx context.Context) {
 	}
 
 	var syncErrs []error
-
-	userCalendarStore := core.NewDynamoStore(
-		dynamodb.NewFromConfig(awsCfg),
-		userCalendarTableName,
-	)
 
 	for _, req := range requestsToProcess {
 		mapping, err := userCalendarStore.GetUserCalendarMapping(ctx, req.Request.UserEmail)
